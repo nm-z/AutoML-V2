@@ -1,0 +1,7 @@
+numpy
+rich
+pandas
+joblib
+auto-sklearn
+tpot
+autogluon.tabular 

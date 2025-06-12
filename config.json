@@ -1,0 +1,22 @@
+{
+  "datasets": [
+    {
+      "id": 1,
+      "name": "Hold-1",
+      "path": "DataSets/1/Predictors_Hold-1_2025-04-14_18-28.csv",
+      "target_column": "y"
+    },
+    {
+      "id": 2,
+      "name": "Hold-2",
+      "path": "DataSets/2/hold2_predictor.csv",
+      "target_column": "target"
+    },
+    {
+      "id": 3,
+      "name": "Hold-3",
+      "path": "DataSets/3/predictors_Hold 1 Full_20250527_151252.csv",
+      "target_path": "DataSets/3/targets_Hold 1 Full_20250527_151252.csv"
+    }
+  ]
+} 
