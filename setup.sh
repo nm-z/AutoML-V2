@@ -39,11 +39,11 @@ check_system() {
     # Check for available Python versions (strictly enforce 3.11)
     if command -v python3.11 &> /dev/null; then
         PYTHON_CMD="python3.11"
-        log_success "Found Python 3.11 (recommended)"
+        log_success "Found Python 3.11 (required)"
     else
-        log_error "Python 3.11 is required but not found. Please install Python 3.11 first for full AutoML compatibility."
-        log_info "On Ubuntu/Debian: sudo apt install python3.11 python3.11-venv python3.11-dev"
-        log_info "On Arch: sudo pacman -S python311"
+        log_error "Python 3.11 is required but not found. Please install Python 3.11 before running this setup script."
+        log_info "For Ubuntu/Debian: sudo apt install python3.11 python3.11-venv python3.11-dev"
+        log_info "For Arch: sudo pacman -S python311"
         exit 1
     fi
     
@@ -124,34 +124,19 @@ install_env_tpa_deps() {
     log_info "Installing base scientific packages..."
     pip install numpy scipy scikit-learn pandas matplotlib seaborn
     
-    # Install TPOT (with setuptools for Python 3.13 compatibility)
+    # Install TPOT (no special handling needed since we support only Python 3.11)
     log_info "Installing TPOT..."
-    if [[ "$PYTHON_CMD" == "python3.13" ]]; then
-        pip install setuptools  # Required for pkg_resources
-    fi
     pip install tpot
     
-    # Install AutoGluon (with Python version check)
-    if [[ "$PYTHON_CMD" == "python3.13" ]]; then
-        log_warning "Skipping AutoGluon installation due to Python 3.13 compatibility issues"
-        log_warning "AutoGluon has dependency conflicts with Python 3.13"
-    else
-        log_info "Installing AutoGluon..."
-        pip install autogluon.tabular
-    fi
+    # Install AutoGluon – fully supported on Python 3.11
+    log_info "Installing AutoGluon..."
+    pip install autogluon.tabular
     
     # Install additional utilities
     pip install rich joblib
     
-    # Install XGBoost and LightGBM if not Python 3.13
-    if [[ "$PYTHON_CMD" == "python3.13" ]]; then
-        log_warning "Installing compatible ML libraries for Python 3.13..."
-        # XGBoost should work with 3.13, but LightGBM might have issues
-        pip install xgboost || log_warning "XGBoost installation failed"
-        pip install lightgbm || log_warning "LightGBM installation failed"
-    else
-        pip install xgboost lightgbm
-    fi
+    # Install XGBoost and LightGBM
+    pip install xgboost lightgbm
     
     deactivate
     log_success "env-tpa dependencies installed successfully"

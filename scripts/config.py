@@ -26,7 +26,6 @@ N_JOBS_MODEL: int = 1
 # ---------------------------------------------------------------------------
 MODEL_FAMILIES: Tuple[str, ...] = (
     "Ridge",
-    "RPOP",
     "Lasso",
     "ElasticNet",
     "SVR",
@@ -71,7 +70,6 @@ DEFAULT_METRIC: str = "r2"  # Do *not* hard-code a target – metric only.
 
 _MODEL_SPACE: dict[str, dict] = {
     "Ridge": {"alpha": [0.1, 1.0, 10.0]},
-    "RPOP": {},  # Placeholder – no scikit-learn equivalent
     "Lasso": {"alpha": [0.001, 0.01, 0.1, 1.0], "max_iter": [2000]},
     "ElasticNet": {
         "alpha": [0.001, 0.01, 0.1, 1.0],

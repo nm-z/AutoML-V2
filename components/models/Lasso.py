@@ -1,7 +1,41 @@
 from __future__ import annotations
 
-from sklearn.linear_model import Lasso as _Lasso
+from typing import Any
+
+from components.base import BaseEstimatorBlock
 
 
-class Lasso(_Lasso):
-    """Expose sklearn's Lasso under project namespace.""" 
+class LassoBlock(BaseEstimatorBlock):
+    """Adapter for ``sklearn.linear_model.Lasso``."""
+
+    signature = {
+        "type": "model",
+        "name": "Lasso",
+        "hyperparameters": {
+            "alpha": "float",
+            "max_iter": "int",
+        },
+    }
+
+    def __init__(self, **kwargs):
+        from sklearn.linear_model import Lasso as _Lasso
+
+        self._params = kwargs.copy()
+        self._impl = _Lasso(**kwargs)
+
+    def fit(self, X, y):
+        self._impl.fit(X, y)
+        return self
+
+    def predict(self, X):
+        return self._impl.predict(X)
+
+    def score(self, X, y, sample_weight: Any | None = None):
+        return self._impl.score(X, y, sample_weight=sample_weight)
+
+    def get_params(self, deep: bool = True):
+        return self._impl.get_params(deep=deep)
+
+    def set_params(self, **params):
+        self._impl.set_params(**params)
+        return self 

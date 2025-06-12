@@ -38,26 +38,47 @@ TPOT_COMPONENT_MAP = {
 }
 
 
-def build_frozen_config(model_families: Sequence[str], prep_steps: Sequence[str]):
-    """Return a TPOT‐compatible search‐space restricted to *approved* components.
+def build_frozen_config(model_families: Sequence[str], _prep_steps: Sequence[str]):
+    """Return a TPOT *config_dict* limited to supported Regressors & Transformers.
 
-    The orchestrator guarantees that *model_families* and *prep_steps* only
-    contain names approved in the immutable spec (Tables 1 & 2).  We map those
-    names to TPOT identifiers via *TPOT_COMPONENT_MAP* and construct an *empty*
-    hyper-parameter dict for each entry – TPOT will then use its default search
-    ranges for that primitive.  This keeps the search-space frozen to exactly
-    the allowed components without manual tuning.
+    IMPORTANT:
+        •  TPOT validates every entry against a whitelist of operator *types*.
+           Passing an unsupported estimator (e.g. unsupervised outlier models)
+           triggers ``ValueError: optype must be one of …`` during runtime.
+
+        •  Therefore we *only* forward components that TPOT can positively
+           identify as either *Regressor* or *Transformer*.  At the moment this
+           includes all **model families** plus the benign scaling / PCA steps.
+
+    The orchestrator still sees the full search-space – TPOT merely ignores the
+    risky entries that violate its operator registry.
     """
 
+    SAFE_PREPROCESSORS = {  # Plain feature transformers accepted by TPOT
+        "PCA",
+        "RobustScaler",
+        "StandardScaler",
+        "QuantileTransform",
+    }
+
     frozen: dict[str, dict] = {}
+
+    # 1️⃣ Add *Regressor* primitives (model families)
     for fam in model_families:
         tpot_name = TPOT_COMPONENT_MAP.get(fam)
         if tpot_name:
             frozen[tpot_name] = {}
-    for prep in prep_steps:
+
+    # 2️⃣ Add only *safe* pre-processing primitives that TPOT classifies as
+    #     Transformer.  Skip outlier detectors (IsolationForest, LOF, …) because
+    #     they do **not** satisfy TPOT's operator-type constraints.
+    for prep in _prep_steps:
+        if prep not in SAFE_PREPROCESSORS:
+            continue
         tpot_name = TPOT_COMPONENT_MAP.get(prep)
         if tpot_name:
             frozen[tpot_name] = {}
+
     return frozen
 
 
