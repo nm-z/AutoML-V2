@@ -59,7 +59,16 @@ logging_level = logging.INFO
 if "AUTOML_VERBOSE" in os.environ:
     logging_level = logging.DEBUG
 
-logging.basicConfig(level=logging_level, format="%(asctime)s - %(levelname)s - %(message)s")
+# Log to both stdout and a persistent log file
+log_file = Path(__file__).with_name("main.log")
+logging.basicConfig(
+    level=logging_level,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_file, mode="a"),
+        logging.StreamHandler(sys.stdout),
+    ],
+)
 logger = logging.getLogger(__name__)
 
 # Optional Logstash integration for centralized logging

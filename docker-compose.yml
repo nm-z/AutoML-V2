@@ -1,0 +1,8 @@
+version: '3.9'
+services:
+  automl:
+    build: .
+    volumes:
+      - ./DataSets:/app/DataSets:ro
+      - ./05_outputs:/app/05_outputs
+    command: ["python", "orchestrator.py", "--help"]

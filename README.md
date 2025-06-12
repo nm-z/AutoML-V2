@@ -8,7 +8,12 @@
 ./setup.sh
 ```
 
-This automatically creates Python environments, installs all dependencies, and sets up the project structure.
+This automatically creates Python environments, installs all dependencies, and sets up the project structure. If you prefer to manage the environment yourself, install the required packages first:
+
+```bash
+pip install -r requirements.txt
+```
+This step ensures modules like `pandas` are available before running `orchestrator.py`.
 
 ## Git Repository Structure
 
@@ -119,6 +124,7 @@ All runs generate artifacts in `05_outputs/<dataset_name>/`:
 - Linux (recommended) or macOS
 - Python 3.11+ (recommended) or Python 3.13 (with limitations)
 - 8GB+ RAM for larger datasets
+
 - Build tools (`build-essential` on Ubuntu, `base-devel` on Arch) 
 ## Log Aggregation
 
@@ -137,3 +143,29 @@ export LOGSTASH_PORT=5959       # optional, defaults to 5959
 ```
 
 Now run the orchestrator as usual and view logs in Kibana at <http://localhost:5601>.
+=======
+- Build tools (`build-essential` on Ubuntu, `base-devel` on Arch)
+
+## Running in Docker with Persistent Logs
+
+This repository includes a minimal **Dockerfile** and a
+`docker-compose.yml` for reproducible runs. The compose configuration
+mounts the host `05_outputs/` directory into the container so that
+all logs and artifacts remain available after the container exits.
+
+```bash
+# Build the Docker image
+docker compose build
+
+# Execute the orchestrator (logs are written to ./05_outputs on the host)
+docker compose run automl \
+  python orchestrator.py --help
+```
+
+All logs are stored under `05_outputs/logs/` on the host machine,
+ensuring they persist between runs.
+=======
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
