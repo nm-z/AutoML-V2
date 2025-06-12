@@ -126,6 +126,25 @@ All runs generate artifacts in `05_outputs/<dataset_name>/`:
 - 8GB+ RAM for larger datasets
 - Build tools (`build-essential` on Ubuntu, `base-devel` on Arch)
 
+## Running in Docker with Persistent Logs
+
+This repository includes a minimal **Dockerfile** and a
+`docker-compose.yml` for reproducible runs. The compose configuration
+mounts the host `05_outputs/` directory into the container so that
+all logs and artifacts remain available after the container exits.
+
+```bash
+# Build the Docker image
+docker compose build
+
+# Execute the orchestrator (logs are written to ./05_outputs on the host)
+docker compose run automl \
+  python orchestrator.py --help
+```
+
+All logs are stored under `05_outputs/logs/` on the host machine,
+ensuring they persist between runs.
+=======
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
