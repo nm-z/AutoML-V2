@@ -119,4 +119,9 @@ All runs generate artifacts in `05_outputs/<dataset_name>/`:
 - Linux (recommended) or macOS
 - Python 3.11+ (recommended) or Python 3.13 (with limitations)
 - 8GB+ RAM for larger datasets
-- Build tools (`build-essential` on Ubuntu, `base-devel` on Arch) 
+- Build tools (`build-essential` on Ubuntu, `base-devel` on Arch)
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
