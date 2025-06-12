@@ -17,58 +17,13 @@ RANDOM_STATE: int = 42  # Global seed – applies to every RNG-capable component
 # Parallelism
 # ---------------------------------------------------------------------------
 # n_jobs for outer CV / AutoML engines – prevents nested parallel explosions
-N_JOBS_CV: int = 12  # Top-level CV or AutoML parallelism
+N_JOBS_CV: int = 1  # Top-level CV or AutoML parallelism
 # n_jobs to be forwarded into *individual* models/transformers
 N_JOBS_MODEL: int = 1
 
 # ---------------------------------------------------------------------------
 # Search-Space Definition (Tables 1 & 2)
 # ---------------------------------------------------------------------------
-# MODEL_FAMILIES: Tuple[str, ...] = (
-#     "Ridge",
-#     "Lasso",
-#     "ElasticNet",
-#     "SVR",
-#     "DecisionTree",
-#     "RandomForest",
-#     "ExtraTrees",
-#     "GradientBoosting",
-#     "AdaBoost",
-#     "MLP",
-#     "XGBoost",
-#     "LightGBM",
-# )
-MODEL_FAMILIES: Tuple[str, ...] = tuple(_MODEL_SPACE.keys())
-
-# PREP_STEPS: Tuple[str, ...] = (
-#     "PCA",
-#     "RobustScaler",
-#     "StandardScaler",
-#     "KMeansOutlier",
-#     "IsolationForest",
-#     "LocalOutlierFactor",
-#     "QuantileTransform",
-# )
-PREP_STEPS: Tuple[str, ...] = tuple(_PREPROCESSOR_SPACE.keys())
-
-# ---------------------------------------------------------------------------
-# Engine Budgets
-# ---------------------------------------------------------------------------
-WALLCLOCK_LIMIT_SEC: int = 3_600  # default per AutoML engine
-
-# ---------------------------------------------------------------------------
-# Misc
-# ---------------------------------------------------------------------------
-DEFAULT_METRIC: str = "r2"  # Do *not* hard-code a target – metric only.
-
-# ---------------------------------------------------------------------------
-# Search-Space – concrete hyper-parameter grids (immutable)
-# ---------------------------------------------------------------------------
-# NOTE: These ranges are intentionally **narrow** and free of manual tuning –
-# they merely expose *representative* values so that each engine can exercise
-# every primitive without exploding the Cartesian search volume.  Update with
-# care: any change here alters the deterministic search-space guaranteed by
-# the spec.
 
 _MODEL_SPACE: dict[str, dict] = {
     "Ridge": {"alpha": [0.1, 1.0, 10.0]},
@@ -137,6 +92,29 @@ _PREPROCESSOR_SPACE: dict[str, dict] = {
     "LocalOutlierFactor": {"n_neighbors": [20, 35], "contamination": [0.05, 0.1]},
     "QuantileTransform": {"output_distribution": ["uniform", "normal"]},
 }
+
+MODEL_FAMILIES: Tuple[str, ...] = tuple(_MODEL_SPACE.keys())
+
+# PREP_STEPS: Tuple[str, ...] = (
+#     "PCA",
+#     "RobustScaler",
+#     "StandardScaler",
+#     "KMeansOutlier",
+#     "IsolationForest",
+#     "LocalOutlierFactor",
+#     "QuantileTransform",
+# )
+PREP_STEPS: Tuple[str, ...] = tuple(_PREPROCESSOR_SPACE.keys())
+
+# ---------------------------------------------------------------------------
+# Engine Budgets
+# ---------------------------------------------------------------------------
+WALLCLOCK_LIMIT_SEC: int = 3_600  # default per AutoML engine
+
+# ---------------------------------------------------------------------------
+# Misc
+# ---------------------------------------------------------------------------
+DEFAULT_METRIC: str = "r2"  # Do *not* hard-code a target – metric only.
 
 # ---------------------------------------------------------------------------
 # Helper – expose hyper-parameter grids for orchestrator / wrappers

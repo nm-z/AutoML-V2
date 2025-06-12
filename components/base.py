@@ -8,6 +8,9 @@ Every model or preprocessing block **must** inherit from either
 `fit`/`transform`).  These mixins exist purely to enforce a *uniform* public
 API across the heterogeneous wrappers scattered throughout the harness.
 
+Every AutoML engine wrapper **must** inherit from `BaseEngine` to ensure a
+consistent public API for the orchestrator to interact with.
+
 The classes intentionally avoid any heavy lifting or additional dependencies –
 they simply hard-code the minimal method signatures expected by the orches-
 trator so that type-checkers (mypy/Pyright) and static linters can reason
@@ -62,4 +65,41 @@ class BaseTransformerBlock(BaseComponent):
     def fit_transform(self, X, y=None):
         """Utility to fit *and* transform in one pass."""
         self.fit(X, y)
-        return self.transform(X) 
+        return self.transform(X)
+
+
+class BaseEngine(ABC):
+    """Base class for all AutoML engine wrappers."""
+
+    @abstractmethod
+    def fit(self, X, y):
+        """Fit the AutoML engine."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def predict(self, X):
+        """Predict targets using the fitted AutoML engine."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def export(self, file_path: str):
+        """Export the champion pipeline to a file."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Return the name of the engine."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def best_pipeline_info(self) -> dict:
+        """Return information about the best pipeline found by the engine."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def run_info(self) -> dict:
+        """Return information about the engine's run, including artifacts and logs."""
+        raise NotImplementedError 

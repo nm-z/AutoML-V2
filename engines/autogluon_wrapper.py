@@ -43,13 +43,53 @@ class AutoGluonEngine(BaseEngine):
         self.run_dir = run_dir
         self._predictor: Any = None
         self._ag_output_path = self.run_dir / "autogluon_output"
+        self._metric: str = DEFAULT_METRIC # Store the metric for best_pipeline_info
+
+    @property
+    def name(self) -> str:
+        return "AutoGluonEngine"
+
+    @property
+    def best_pipeline_info(self) -> dict:
+        if self._predictor is None:
+            return {"status": "not_fitted"}
+        try:
+            leaderboard = self._predictor.leaderboard(silent=True)
+            if not leaderboard.empty:
+                best_model_info = leaderboard.iloc[0].to_dict()
+                return {
+                    "score": best_model_info.get("score_val", "N/A"),
+                    "metric": self._metric,
+                    "model_name": best_model_info.get("model", "N/A"),
+                    "pipeline_description": "AutoGluon ensemble/stacking",
+                    "leaderboard_entry": best_model_info,
+                }
+            return {"status": "fitted", "details": "No detailed pipeline info available from AutoGluon predictor"}
+        except Exception as e:
+            logger.error(f"Error extracting best_pipeline_info for AutoGluonEngine: {e}", exc_info=True)
+            return {"status": "error", "message": str(e)}
+
+    @property
+    def run_info(self) -> dict:
+        if self._predictor is None:
+            return {"status": "not_fitted"}
+        
+        return {
+            "best_score": self.best_pipeline_info.get("score", "N/A"),
+            "run_dir": str(self.run_dir), # The base run directory for this engine
+            "log": str(self.run_dir.parent / "logs" / f"{self.name}.log"), # Orchestrator's log for this engine
+            "artefact_paths": {
+                "autogluon_output_zip": str(self.run_dir / "autogluon.zip"),
+                "autogluon_output_folder": str(self._ag_output_path), # Original folder path
+            }
+        }
 
     def fit(self, X: pd.DataFrame, y: pd.Series, **kwargs) -> BaseEstimator:
         root = Tree("[AutoGluon]")
         logger.info("[%s] search-start", self.__class__.__name__)
 
         model_families = kwargs.get("model_families", _MODEL_SPACE.keys())
-        metric = kwargs.get("metric", DEFAULT_METRIC)
+        self._metric = kwargs.get("metric", DEFAULT_METRIC) # Store the metric
 
         ag_included_models = []
         for family in model_families:
@@ -67,14 +107,14 @@ class AutoGluonEngine(BaseEngine):
             self._predictor = TabularPredictor(
                 label="target",
                 problem_type="regression",
-                eval_metric=metric, # AutoGluon understands 'r2', 'neg_mean_squared_error', 'neg_mean_absolute_error'
+                eval_metric=self._metric, # AutoGluon understands 'r2', 'neg_mean_squared_error', 'neg_mean_absolute_error'
                 path=str(self._ag_output_path),
+                seed=self.seed,
             )
             self._predictor.fit(
                 train_data=train_data,
                 presets="medium_quality_faster_train",  # Specific preset as required
                 time_limit=self.timeout_sec,
-                seed=self.seed,
                 # Only include models explicitly requested by the orchestrator from our allowed list
                 included_model_types=list(set(ag_included_models)) if ag_included_models else None,
             )

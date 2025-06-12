@@ -23,26 +23,9 @@ logger = logging.getLogger(__name__)
 # For now, a representative subset is provided.
 TPOT_COMPONENT_MAP = {
     # Models
-    "Ridge": "sklearn.linear_model.Ridge",
-    "Lasso": "sklearn.linear_model.Lasso",
-    "ElasticNet": "sklearn.linear_model.ElasticNet",
-    "SVR": "sklearn.svm.SVR",
-    "DecisionTree": "sklearn.tree.DecisionTreeRegressor",
-    "RandomForest": "sklearn.ensemble.RandomForestRegressor",
-    "ExtraTrees": "sklearn.ensemble.ExtraTreesRegressor",
-    "GradientBoosting": "sklearn.ensemble.GradientBoostingRegressor",
-    "AdaBoost": "sklearn.ensemble.AdaBoostRegressor",
-    "MLP": "sklearn.neural_network.MLPRegressor",
-    "XGBoost": "xgboost.XGBRegressor",
-    "LightGBM": "lightgbm.LGBMRegressor",
+    "Ridge": "sklearn.linear_model.Ridge", # Use Ridge as a basic regressor
     # Preprocessors
-    "PCA": "sklearn.decomposition.PCA",
-    "RobustScaler": "sklearn.preprocessing.RobustScaler",
     "StandardScaler": "sklearn.preprocessing.StandardScaler",
-    "QuantileTransform": "sklearn.preprocessing.QuantileTransformer",
-    # TPOT has specific components for outlier detection, but they are not
-    # direct one-to-one mappings for KMeansOutlier, IsolationForest, LOF
-    # so we will omit them from the config_dict for now.
 }
 
 # Map generic metric names to TPOT internal names
@@ -61,16 +44,21 @@ def _build_frozen_config(model_families: Sequence[str], prep_steps: Sequence[str
     for fam in model_families:
         tpot_name = TPOT_COMPONENT_MAP.get(fam)
         if tpot_name:
-            frozen[tpot_name] = _MODEL_SPACE.get(fam, {})
+            # Ensure the component is a regressor
+            if "Regressor" in tpot_name or tpot_name.endswith("LinearRegression"): # Check for Regressor type
+                frozen[tpot_name] = _MODEL_SPACE.get(fam, {})
+            else:
+                logger.warning(f"Skipping non-regressor model {fam} for TPOTRegressor")
 
     # Add pre-processing primitives
     for prep in prep_steps:
         tpot_name = TPOT_COMPONENT_MAP.get(prep)
         if tpot_name:
-            # Only include preprocessors that TPOT supports as transformers
-            # For simplicity, we are assuming all components in PREP_STEPS are safe
-            # for TPOT in terms of type. More robust check might be needed for a live system.
-            frozen[tpot_name] = _PREPROCESSOR_SPACE.get(prep, {})
+            # Ensure the component is a transformer
+            if "Transformer" in tpot_name or tpot_name.endswith("Scaler") or tpot_name.endswith("PCA"): # Check for Transformer type
+                frozen[tpot_name] = _PREPROCESSOR_SPACE.get(prep, {})
+            else:
+                logger.warning(f"Skipping non-transformer preprocessor {prep} for TPOTRegressor")
 
     return frozen
 
@@ -83,6 +71,42 @@ class TPOTEngine(BaseEngine):
         self.timeout_sec = timeout_sec
         self.run_dir = run_dir
         self._tpot: Any = None
+        self._metric: str = DEFAULT_METRIC # Store the metric for best_pipeline_info
+
+    @property
+    def name(self) -> str:
+        return "TPOTEngine"
+
+    @property
+    def best_pipeline_info(self) -> dict:
+        if self._tpot is None:
+            return {"status": "not_fitted"}
+        try:
+            score = getattr(self._tpot, "_optimized_pipeline_score", "N/A")
+            return {
+                "score": score,
+                "metric": self._metric,
+                "pipeline_description": "TPOT internal pipeline (genetic programming result)",
+                "evaluated_pipelines": len(self._tpot.evaluated_individuals_) if hasattr(self._tpot, "evaluated_individuals_") else "N/A",
+            }
+        except Exception as e:
+            logger.error(f"Error extracting best_pipeline_info for TPOTEngine: {e}", exc_info=True)
+            return {"status": "error", "message": str(e)}
+
+    @property
+    def run_info(self) -> dict:
+        if self._tpot is None:
+            return {"status": "not_fitted"}
+        
+        return {
+            "best_score": self.best_pipeline_info.get("score", "N/A"),
+            "run_dir": str(self.run_dir), # The base run directory for this engine
+            "log": str(self.run_dir.parent / "logs" / f"{self.name}.log"), # Orchestrator's log for this engine
+            "artefact_paths": {
+                "exported_pipeline_py": str(self.run_dir / "exported_pipeline.py"),
+                "evaluation_json": str(self.run_dir / "evaluation.json"),
+            }
+        }
 
     def fit(self, X: pd.DataFrame, y: pd.Series, **kwargs) -> BaseEstimator:
         root = Tree("[TPOT]")
@@ -90,10 +114,10 @@ class TPOTEngine(BaseEngine):
 
         model_families = kwargs.get("model_families", _MODEL_SPACE.keys())
         prep_steps = kwargs.get("prep_steps", _PREPROCESSOR_SPACE.keys())
-        metric = kwargs.get("metric", DEFAULT_METRIC)
+        self._metric = kwargs.get("metric", DEFAULT_METRIC) # Store the metric
 
         custom_tpot_config = _build_frozen_config(model_families, prep_steps)
-        tpot_metric = TPOT_METRIC_MAP.get(metric, "r2")
+        tpot_metric = TPOT_METRIC_MAP.get(self._metric, "r2")
 
         try:
             from tpot import TPOTRegressor
@@ -110,7 +134,6 @@ class TPOTEngine(BaseEngine):
                 random_state=self.seed,
                 max_time_mins=max(1, self.timeout_sec // 60),
                 verbosity=2,
-                template="Regression", # enforce regression template
             )
 
             self._tpot.fit(X, y)

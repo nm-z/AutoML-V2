@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import time
 import os # Import os for environment variable checking
+import sys # Import sys for sys.exit
 from pathlib import Path
 import argparse
 import json
@@ -92,56 +93,54 @@ def _extract_pipeline_info(model: Any) -> list[dict]:
     handling different AutoML engine outputs.
     """
     pipeline_info = []
-    if isinstance(model, Pipeline): # Generic Scikit-learn pipeline
-        for name, step_obj in model.steps:
-            step_name = step_obj.__class__.__name__
+    if hasattr(model, "show_models") and callable(model.show_models):
+        # This path is for Auto-Sklearn
+        for rank, model_dict in model.show_models().items():
+            for step_name, step_details in model_dict["configuration"].items():
+                if step_name == "regressor":
+                    # Handle the final estimator
+                    pipeline_info.append({
+                        "step": step_details["name"],
+                        "params": step_details["hyperparameters"],
+                    })
+                elif step_name.startswith("data_preprocessor"):
+                    # Handle preprocessors
+                    pipeline_info.append({
+                        "step": step_details["name"],
+                        "params": step_details["hyperparameters"],
+                    })
+    elif hasattr(model, "export") and callable(model.export) and hasattr(model, "evaluated_individuals"):
+        # This path is for TPOT (after it exports a pipeline and has evaluated_individuals)
+        # This is a simplified extraction; a full implementation would parse the exported .py file
+        if model.evaluated_individuals:
+            best_individual = max(model.evaluated_individuals.values(), key=lambda ind: ind.fitness.values[0])
+            # Extract steps and parameters from the best_individual pipeline
+            # This requires knowledge of TPOT's internal representation, which is complex
+            # For now, return a placeholder
+            return [{"step": "TPOT Pipeline", "params": {"complexity": best_individual.complexity}}]
+        return []
+    elif hasattr(model, "leaderboard") and callable(model.leaderboard):
+        # This path is for AutoGluon
+        leaderboard = model.leaderboard(extra_info=True)
+        if not leaderboard.empty:
+            best_model_name = leaderboard.loc[0, 'model']
+            # AutoGluon models are often complex ensembles, difficult to represent as simple steps
+            # For now, return the best model name and its score
+            return [{"step": best_model_name, "params": {"score_val": leaderboard.loc[0, 'score_val']}}]
+        return []
+    elif isinstance(model, Pipeline):
+        # Handle scikit-learn pipelines directly if the champion is a simple sklearn pipeline
+        pipeline_info = []
+        for name, step in model.steps:
             params = {}
-            if hasattr(step_obj, 'get_params'):
-                all_params = step_obj.get_params(deep=False)
-                # Filter for basic types; omit complex objects/references
-                params = {k: v for k, v in all_params.items() if isinstance(v, (int, float, str, bool, list, type(None)))}
-            pipeline_info.append({"step": step_name, "params": params})
-    elif hasattr(model, 'get_model_pipeline'): # AutoSklearn
-        try:
-            sklearn_pipeline = model.get_model_pipeline()
-            if isinstance(sklearn_pipeline, Pipeline):
-                for name, step_obj in sklearn_pipeline.steps:
-                    step_class_name = getattr(step_obj, '__class__', type(step_obj)).__name__
-                    params = {}
-                    if hasattr(step_obj, 'get_params'):
-                        all_params = step_obj.get_params(deep=False)
-                        params = {k: v for k, v in all_params.items() if isinstance(v, (int, float, str, bool, list, type(None)))}
-                    pipeline_info.append({"step": step_class_name, "params": params})
-            elif hasattr(sklearn_pipeline, '__class__'):
-                step_class_name = getattr(sklearn_pipeline, '__class__', type(sklearn_pipeline)).__name__
-                params = {}
-                if hasattr(sklearn_pipeline, 'get_params'):
-                    all_params = sklearn_pipeline.get_params(deep=False)
-                    params = {k: v for k, v in all_params.items() if isinstance(v, (int, float, str, bool, list, type(None)))}
-                pipeline_info.append({"step": step_class_name, "params": params})
-            else:
-                logger.warning("Could not extract detailed pipeline from AutoSklearn model. Type: %s", type(sklearn_pipeline))
-                pipeline_info.append({"step": "AutoSklearnInternal", "params": {}})
-        except Exception as e:
-            logger.warning(f"Error extracting AutoSklearn pipeline: {e}", exc_info=True)
-            pipeline_info.append({"step": "AutoSklearnInternal", "params": {}})
-    elif hasattr(model, 'path') and 'autogluon' in str(model.path).lower(): # AutoGluon Predictor
-        pipeline_info.append({"step": "AutoGluonEnsemble", "params": {}})
-    elif hasattr(model, 'fitted_pipeline_') and isinstance(model.fitted_pipeline_, Pipeline): # TPOT
-        for name, step_obj in model.fitted_pipeline_.steps:
-            step_name = step_obj.__class__.__name__
-            params = {}
-            if hasattr(step_obj, 'get_params'):
-                all_params = step_obj.get_params(deep=False)
-                params = {k: v for k, v in all_params.items() if isinstance(v, (int, float, str, bool, list, type(None)))}
-            pipeline_info.append({"step": step_name, "params": params})
-    elif hasattr(model, 'exported_pipeline_file'): # TPOT, if it has an exported pipeline path
-        pipeline_info.append({"step": "TPOTExportedPipeline", "params": {"file": model.exported_pipeline_file}})
+            if hasattr(step, 'get_params'):
+                # Filter out non-hyperparameter parameters by convention (no leading underscore)
+                params = {k: v for k, v in step.get_params().items() if not k.startswith('_') and '__' not in k}
+            pipeline_info.append({"step": name, "params": params})
+        return pipeline_info
     else:
-        logger.warning(f"Could not extract pipeline info for model of type: {type(model)}")
-        pipeline_info.append({"step": "UnknownModelType", "params": {}})
-
-    return pipeline_info
+        # Default for simple models, or if the model type is not recognized
+        return [{"step": model.__class__.__name__, "params": {}}]
 
 
 def _write_runtime_manifest(
@@ -171,9 +170,7 @@ def _write_runtime_manifest(
         "target": Path(initial_cli_args.target).name.split('.')[0]
     }
 
-    champion_pipeline_info = _extract_pipeline_info(
-        per_engine_fitted_models.get(champion_engine_name)
-    )
+    champion_pipeline_info = _extract_pipeline_info(champion_model)
 
     runners_data = {}
     for eng_name, metrics in per_engine_metrics.items():
@@ -282,7 +279,7 @@ def _meta_search_sequential(
     python_major_version = sys.version_info.major
     python_minor_version = sys.version_info.minor
 
-    for name, wrapper in all_engines.items():
+    for name, wrapper_module in all_engines.items(): # Changed wrapper_class to wrapper_module
         # Skip AutoGluon only on versions known to be incompatible (e.g., Python 3.13)
         if name == "autogluon_wrapper" and python_major_version == 3 and python_minor_version == 13:
             discover_node.add(
@@ -291,7 +288,10 @@ def _meta_search_sequential(
             continue
 
         discover_node.add(f"[green]✔ {name}")
-        engines[name] = wrapper
+        # Dynamically get the engine class from the module
+        engine_class_name = wrapper_module.__all__[0] # Assuming the class name is the first in __all__
+        engine_class = getattr(wrapper_module, engine_class_name)
+        engines[name] = engine_class(seed=config.RANDOM_STATE, timeout_sec=timeout_sec, run_dir=run_dir)
 
     if not engines:
         console.print(root)
@@ -300,40 +300,39 @@ def _meta_search_sequential(
     # ---------------------------------------------------------------------
     # 2️⃣ Iterate over engines
     # ---------------------------------------------------------------------
-    results: Dict[str, Any] = {}
-    for eng_name, wrapper in engines.items():
+    per_engine_fitted_models: Dict[str, Any] = {}
+    for eng_name, wrapper_instance in engines.items(): # wrapper_instance is now the instantiated object
         eng_node = root.add(f"[bold]{eng_name}[/] ▸ running for {timeout_sec}s…")
         start = time.perf_counter()
         try:
-            model = wrapper.fit_engine(
+            model = wrapper_instance.fit(
                 X,
                 y,
                 model_families=config.MODEL_FAMILIES,
                 prep_steps=config.PREP_STEPS,
-                seed=config.RANDOM_STATE,
-                timeout_sec=timeout_sec,
+                # seed is passed during initialization
+                # timeout_sec is passed during initialization
                 metric=metric,
             )
             duration = time.perf_counter() - start
             eng_node.add(f"[green]✓ completed in {duration:.1f}s")
-            results[eng_name] = model
+            per_engine_fitted_models[eng_name] = model
 
-            # Persist model artifact
-            file_path = run_dir / f"{eng_name}_champion.pkl"
+            # Persist model artifact using the engine's export method
+            engine_output_dir = run_dir / eng_name # Create a subdirectory for each engine's artifacts
+            engine_output_dir.mkdir(parents=True, exist_ok=True)
             try:
-                import joblib
-
-                joblib.dump(model, file_path)
-                eng_node.add(f"[blue]🔖 saved → {file_path}")
+                wrapper_instance.export(engine_output_dir)
+                eng_node.add(f"[blue]🔖 saved artifacts to → {engine_output_dir}")
             except Exception as exc:  # noqa: BLE001 – log & continue
-                eng_node.add(f"[yellow]⚠ could not save: {exc}")
+                eng_node.add(f"[yellow]⚠ could not save artifacts: {exc}")
         except Exception as err:  # noqa: BLE001 – fail fast
             eng_node.add(f"[red]✗ error: {err}")
             console.print(root)
             raise  # Fail-Fast-On-Errors
 
     # If every engine errored-out we cannot proceed to evaluation
-    if not results:
+    if not per_engine_fitted_models:
         console.print(root)
         raise RuntimeError("All AutoML engines failed.")
 
@@ -352,7 +351,7 @@ def _meta_search_sequential(
 
     per_engine_metrics: Dict[str, Dict[str, float]] = {}
 
-    for eng_name, model in results.items():
+    for eng_name, model in per_engine_fitted_models.items(): # Changed results to per_engine_fitted_models
         sub = cv_node.add(f"{eng_name} ▸ CV evaluating…")
         try:
             cv_res = cross_validate(
@@ -394,7 +393,7 @@ def _meta_search_sequential(
     # 4️⃣ Select the overall champion based on mean CV R²
     # ---------------------------------------------------------------------
     champion_name, champion_model = max(
-        results.items(), key=lambda kv: per_engine_metrics[kv[0]]["r2"]
+        per_engine_fitted_models.items(), key=lambda kv: per_engine_metrics[kv[0]]["r2"] # Changed results to per_engine_fitted_models
     )
 
     champ_score = per_engine_metrics[champion_name]["r2"]
@@ -410,7 +409,7 @@ def _meta_search_sequential(
 
     # Return the champion model and per-engine results and metrics
     console.print(root)
-    return champion_model, results, per_engine_metrics # Added per_engine_metrics to return
+    return champion_model, per_engine_fitted_models, per_engine_metrics # Changed results to per_engine_fitted_models
 
 def meta_search(
     X: pd.DataFrame,
@@ -456,13 +455,11 @@ def _cli() -> None:
     parser.add_argument(
         "--data",
         type=str,
-        required=True,
         help="Path to the predictors CSV file (e.g., DataSets/3/predictors.csv)",
     )
     parser.add_argument(
         "--target",
         type=str,
-        required=True,
         help="Path to the target CSV file (e.g., DataSets/3/targets.csv)",
     )
     parser.add_argument(
@@ -524,12 +521,27 @@ def _cli() -> None:
             args.output_dir = static_config_data.get("output_dir", args.output_dir)
             args.metric = static_config_data.get("metric", args.metric)
             args.ensemble = static_config_data.get("ensemble", args.ensemble)
+
+            # If config file is provided, data and target paths are now expected to come from it
+            if not args.data:
+                logger.error("Error: 'data_path' missing in the provided configuration file.")
+                sys.exit(2)
+            if not args.target:
+                logger.error("Error: 'target_path' missing in the provided configuration file.")
+                sys.exit(2)
+
         except FileNotFoundError:
             logger.error(f"Configuration file not found: {args.config}")
             sys.exit(2)
         except json.JSONDecodeError:
             logger.error(f"Invalid JSON in configuration file: {args.config}")
             sys.exit(2)
+    else:
+        # If no config file is provided, --data and --target are required via CLI
+        if not args.data:
+            parser.error("The following arguments are required: --data (or specify --config)")
+        if not args.target:
+            parser.error("The following arguments are required: --target (or specify --config)")
 
     # Ensure the base output directory exists
     base_output_dir = Path(args.output_dir)
@@ -560,7 +572,7 @@ def _cli() -> None:
     logger.info("Output directory: %s", run_dir)
     logger.info("Evaluation metric: %s", args.metric)
 
-    start_total_run = time.perf_counter()
+    start_time = time.time()
     champion_model = None
     per_engine_results = {}
     per_engine_metrics = {}
@@ -598,7 +610,7 @@ def _cli() -> None:
         logger.error(f"An unexpected error occurred: {e}", exc_info=True) # Log traceback
         exit_code = 2 # General crash exit code
     finally:
-        total_duration = time.perf_counter() - start_total_run
+        total_duration = time.time() - start_time
         if exit_code == 0: # Only write manifest on successful completion
             # Identify the champion engine name and its CV score
             champion_engine_name = None
@@ -775,14 +787,16 @@ def _meta_search_concurrent(
     python_major_version = sys.version_info.major
     python_minor_version = sys.version_info.minor
 
-    for name, wrapper in all_engines.items():
+    for name, wrapper_module in all_engines.items(): # Changed wrapper_class to wrapper_module
         if name == "autogluon_wrapper" and python_major_version == 3 and python_minor_version == 13:
             discover_node.add(
                 f"[yellow]⚠ Skipping {name} due to Python 3.13 compatibility issues"
             )
             continue
         discover_node.add(f"[green]✔ {name}")
-        engines[name] = wrapper
+        # Dynamically get the engine class from the module
+        engine_class_name = wrapper_module.__all__[0] # Assuming the class name is the first in __all__
+        engines[name] = getattr(wrapper_module, engine_class_name) # Store the class, not instantiated object yet
 
     if not engines:
         console.print(discover_node)
@@ -802,7 +816,7 @@ def _meta_search_concurrent(
     # For now, pass them directly (they will be pickled).
 
     # Define the worker function that each process will run
-    def _runner(name: str, X_obj, y_obj, t_sec, r_dir, model_families, prep_steps, met, q: _MPQueue):
+    def _runner(name: str, X_obj, y_obj, t_sec, r_dir, model_families, prep_steps, met, q: _MPQueue, wrapper_class: Any):
         # Configure logging for the child process to a dedicated file
         log_file_path = r_dir.parent / "logs" / f"{name}.log" # e.g., 05_outputs/logs/autosklearn.log
         log_file_path.parent.mkdir(parents=True, exist_ok=True) # Ensure logs directory exists
@@ -829,10 +843,9 @@ def _meta_search_concurrent(
         engine_metrics = {}
 
         try:
-            engine_class = _get_automl_engine(name)
-            # Pass the run_dir to the engine wrapper so it saves its artifacts there
-            engine = engine_class(seed=config.RANDOM_STATE, timeout_sec=t_sec, run_dir=r_dir)
-            fitted_model = engine.fit(
+            # Instantiate the engine wrapper within the child process
+            wrapper_instance = wrapper_class(seed=config.RANDOM_STATE, timeout_sec=t_sec, run_dir=r_dir)
+            fitted_model = wrapper_instance.fit(
                 X_obj, y_obj,
                 model_families=model_families,
                 prep_steps=prep_steps,
@@ -891,13 +904,13 @@ def _meta_search_concurrent(
             logger.error("[Orchestrator|%s] Engine crashed: %s\n%s", name, e, error_traceback)
             q.put((name, None, {"error": str(e), "traceback": error_traceback})) # Indicate error, pass traceback
 
-    for eng_name, wrapper in engines.items():
+    for eng_name, wrapper_class in engines.items():
         # Start a new process for each engine
         worker = ctx.Process(
             target=_runner,
             args=(
                 eng_name, X, y, timeout_per_engine, run_dir,
-                config.MODEL_FAMILIES, config.PREP_STEPS, metric, q
+                config.MODEL_FAMILIES, config.PREP_STEPS, metric, q, wrapper_class
             ),
         )
         worker.start()
@@ -958,5 +971,4 @@ def _meta_search_concurrent(
 
 
 if __name__ == "__main__":
-    import sys # Add import for sys module
     _cli() 
