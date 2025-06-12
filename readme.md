@@ -98,7 +98,7 @@ AutoML‑Harness
 3. Implement `_get_automl_engine()` (imports auto‑sklearn → TPOT → AutoGluon).
 4. Write `_fit_engine()` adapters and `meta_search()` orchestrator.
 5. Optional: ensemble the three champions for a small R² bump.
-6. Add CLI + CI tests.
+6. Add CLI tests and provide a basic CI workflow.
 
 ---
 
