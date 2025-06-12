@@ -25,6 +25,7 @@ from rich.console import Console
 from rich.tree import Tree
 
 import scripts.config as config
+from scripts.data_loader import load_data # Import the new data_loader
 from engines import discover_available
 from engines.auto_sklearn_wrapper import AutoSklearnEngine
 from engines.tpot_wrapper import TPOTEngine
@@ -43,6 +44,9 @@ from sklearn.metrics import (
     r2_score,
     mean_squared_error,
 )
+
+# Define the project version
+__version__ = "0.1.0" # Added version attribute
 
 # ---------------------------------------------------------------------------
 # Global Logging Setup
@@ -80,6 +84,7 @@ def _meta_search_legacy(
     artifacts_dir: Path | str = "05_outputs",
     timeout_per_engine: int | None = None,
     metric: str = config.DEFAULT_METRIC,
+    enable_ensemble: bool = False,
 ) -> Tuple[Any, Dict[str, Any]]:
     """Run each available AutoML engine and return the best model.
 
@@ -285,7 +290,8 @@ def meta_search(
     artifacts_dir: Path | str = "05_outputs",
     timeout_per_engine: int | None = None,
     metric: str = config.DEFAULT_METRIC,
-) -> Any:  # noqa: ANN401 – polymorphic return type
+    enable_ensemble: bool = False,
+) -> Tuple[Any, Dict[str, Any]]:
     """Run each available AutoML engine and return the best model.
 
     Parameters
@@ -441,14 +447,11 @@ def _cli() -> None:
             logger.error(f"Invalid JSON in configuration file: {args.config}")
             sys.exit(2)
 
-    # Load data
+    # Load data using the new data_loader module
     try:
-        X = pd.read_csv(args.data)
-        y = pd.read_csv(args.target).squeeze()  # Squeeze to convert DataFrame to Series if it's a single column
-        if y.ndim > 1: # Handle case where target CSV has multiple columns or is not squeezed properly
-             raise ValueError("Target file must contain a single target column.")
+        X, y = load_data(args.data, args.target)
     except Exception as e:
-        logger.error(f"Error loading data: {e}")
+        logger.error(f"Error loading data: {e}", exc_info=True)
         sys.exit(2) # Exit code for data loading error
 
     # Determine dataset name for artifacts directory
@@ -472,16 +475,16 @@ def _cli() -> None:
                 artifacts_dir=current_run_artifacts_dir,
                 timeout_per_engine=args.time,
                 metric=args.metric,
-                enable_ensemble=args.ensemble and not args.no_ensemble, # Pass ensemble flag
+                enable_ensemble=args.ensemble and not args.no_ensemble,
             )
         else:
-            champion_model, _ = meta_search(
+            champion_model, _ = _meta_search_legacy(
                 X=X,
                 y=y,
                 artifacts_dir=current_run_artifacts_dir,
                 timeout_per_engine=args.time,
                 metric=args.metric,
-                enable_ensemble=args.ensemble and not args.no_ensemble, # Pass ensemble flag
+                enable_ensemble=args.ensemble and not args.no_ensemble,
             )
         logger.info("AutoML meta-search completed successfully.")
         sys.exit(0)  # Success exit code
