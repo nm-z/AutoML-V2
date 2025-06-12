@@ -120,3 +120,20 @@ All runs generate artifacts in `05_outputs/<dataset_name>/`:
 - Python 3.11+ (recommended) or Python 3.13 (with limitations)
 - 8GB+ RAM for larger datasets
 - Build tools (`build-essential` on Ubuntu, `base-devel` on Arch) 
+## Log Aggregation
+
+This project ships a simple **ELK stack** configuration for collecting and searching logs.
+Start the stack with:
+
+```bash
+docker compose -f docker-compose.logging.yml up -d
+```
+
+Set the `LOGSTASH_HOST` environment variable so `orchestrator.py` forwards logs to Logstash:
+
+```bash
+export LOGSTASH_HOST=localhost  # or the host running Logstash
+export LOGSTASH_PORT=5959       # optional, defaults to 5959
+```
+
+Now run the orchestrator as usual and view logs in Kibana at <http://localhost:5601>.
