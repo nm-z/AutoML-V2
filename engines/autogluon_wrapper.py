@@ -1,90 +1,111 @@
 """autogluon_wrapper – Stub Implementation"""
 from __future__ import annotations
 
+import logging
+import shutil
+from pathlib import Path
 from typing import Any, Sequence
 
 import pandas as pd
 from rich.console import Console
 from rich.tree import Tree
+from sklearn.base import BaseEstimator
+
+from components.base import BaseEngine
+from scripts.config import _MODEL_SPACE, DEFAULT_METRIC
 
 console = Console(highlight=False)
+logger = logging.getLogger(__name__)
+
+# Map our generic model names to AutoGluon's internal model keys
+AUTOGLUON_MODEL_MAP = {
+    "Ridge": "LR",
+    "Lasso": "LR",
+    "ElasticNet": "LR",
+    "SVR": None,  # AutoGluon doesn't have a direct SVR equivalent in default models
+    "DecisionTree": None,  # AutoGluon uses tree-based models, but not directly 'DecisionTree'
+    "RandomForest": "RF",
+    "ExtraTrees": "XT",
+    "GradientBoosting": "GBM",  # LightGBM is often used for Gradient Boosting
+    "AdaBoost": None,  # No direct AdaBoost model in default AutoGluon
+    "MLP": "NN_TORCH",  # Multi-layer Perceptron
+    "XGBoost": "XGB",
+    "LightGBM": "GBM",
+}
 
 
-def fit_engine(
-    X: pd.DataFrame,
-    y: pd.Series,
-    *,
-    model_families: Sequence[str],
-    prep_steps: Sequence[str],
-    seed: int,
-    timeout_sec: int,
-) -> Any:  # noqa: ANN401
-    """Fit AutoGluon TabularPredictor or fallback DummyRegressor."""
+class AutoGluonEngine(BaseEngine):
+    """AutoGluon adapter conforming to the orchestrator's API."""
 
-    root = Tree("[AutoGluon]")
+    def __init__(self, seed: int, timeout_sec: int, run_dir: Path):
+        self.seed = seed
+        self.timeout_sec = timeout_sec
+        self.run_dir = run_dir
+        self._predictor: Any = None
+        self._ag_output_path = self.run_dir / "autogluon_output"
 
-    # Map our generic model names to AutoGluon's internal model keys
-    autogluon_model_map = {
-        "Ridge": "LR",
-        "Lasso": "LR",
-        "ElasticNet": "LR",
-        "SVR": None,  # AutoGluon doesn't have a direct SVR equivalent in default models
-        "DecisionTree": None,  # AutoGluon uses tree-based models, but not directly 'DecisionTree'
-        "RandomForest": "RF",
-        "ExtraTrees": "XT",
-        "GradientBoosting": "GBM",  # LightGBM is often used for Gradient Boosting
-        "AdaBoost": None,  # No direct AdaBoost model in default AutoGluon
-        "MLP": "NN_TORCH",  # Multi-layer Perceptron
-        "XGBoost": "XGB",
-        "LightGBM": "GBM",
-        "RPOP": None, # RPOP is not a standard AutoGluon model
-    }
+    def fit(self, X: pd.DataFrame, y: pd.Series, **kwargs) -> BaseEstimator:
+        root = Tree("[AutoGluon]")
+        logger.info("[%s] search-start", self.__class__.__name__)
 
-    ag_included_models = []
-    for family in model_families:
-        ag_key = autogluon_model_map.get(family)
-        if ag_key:
-            ag_included_models.append(ag_key)
+        model_families = kwargs.get("model_families", _MODEL_SPACE.keys())
+        metric = kwargs.get("metric", DEFAULT_METRIC)
 
-    # AutoGluon handles preprocessing internally. We won't constrain it directly
-    # based on prep_steps, as that would interfere with its automated feature engineering.
-    # However, if we needed to disable certain types of features, we would use
-    # the `feature_generator` argument in TabularPredictor.
+        ag_included_models = []
+        for family in model_families:
+            ag_key = AUTOGLUON_MODEL_MAP.get(family)
+            if ag_key:
+                ag_included_models.append(ag_key)
 
-    try:
-        from autogluon.tabular import TabularPredictor  # type: ignore
+        try:
+            from autogluon.tabular import TabularPredictor
 
-        root.add("library detected – running real AutoGluon")
-        train_data = X.copy()
-        train_data["target"] = y
-        predictor = TabularPredictor(
-            label="target",
-            problem_type="regression",
-            eval_metric="r2",
-        )
-        predictor.fit(
-            train_data=train_data,
-            presets="lite",
-            time_limit=timeout_sec,
-            seed=seed,
-            # Only include models explicitly requested by the orchestrator from our allowed list
-            included_model_types=list(set(ag_included_models)) if ag_included_models else None, # Use set to remove duplicates
-        )
-        predictor.best_score_ = predictor.leaderboard(silent=True)["score_val"].iloc[0]  # type: ignore[attr-defined]
-        model = predictor
-    except ModuleNotFoundError:
-        root.add("library missing – fallback LinearRegression")
-        from sklearn.linear_model import LinearRegression  # type: ignore
+            root.add("library detected – running real AutoGluon")
+            train_data = X.copy()
+            train_data["target"] = y
 
-        linreg = LinearRegression(n_jobs=1)
-        linreg.fit(X, y)
-        preds = linreg.predict(X)
-        ss_res = ((y - preds) ** 2).sum()
-        ss_tot = ((y - y.mean()) ** 2).sum()
-        linreg.best_score_ = 1 - ss_res / ss_tot  # type: ignore[attr-defined]
-        model = linreg
+            self._predictor = TabularPredictor(
+                label="target",
+                problem_type="regression",
+                eval_metric=metric, # AutoGluon understands 'r2', 'neg_mean_squared_error', 'neg_mean_absolute_error'
+                path=str(self._ag_output_path),
+            )
+            self._predictor.fit(
+                train_data=train_data,
+                presets="medium_quality_faster_train",  # Specific preset as required
+                time_limit=self.timeout_sec,
+                seed=self.seed,
+                # Only include models explicitly requested by the orchestrator from our allowed list
+                included_model_types=list(set(ag_included_models)) if ag_included_models else None,
+            )
+            best_score = self._predictor.leaderboard(silent=True)["score_val"].iloc[0]
+            logger.info("[%s] best-score: %s", self.__class__.__name__, best_score)
 
-    console.print(root)
-    return model
+        except ModuleNotFoundError as e:
+            logger.warning("[%s] library missing – fallback LinearRegression: %s", self.__class__.__name__, e)
+            from sklearn.linear_model import LinearRegression
 
-__all__ = ["fit_engine"] 
+            linreg = LinearRegression(n_jobs=1)
+            linreg.fit(X, y)
+            self._predictor = linreg
+
+        console.print(root)
+        logger.info("[%s] search-end", self.__class__.__name__)
+        return self._predictor
+
+    def predict(self, X: pd.DataFrame) -> pd.Series:
+        if self._predictor is None:
+            raise RuntimeError("Model not fitted. Call fit() first.")
+        return self._predictor.predict(X)
+
+    def export(self, path: Path):
+        if self._predictor is None:
+            raise RuntimeError("Model not fitted. Call fit() first.")
+
+        # AutoGluon saves its output to a directory. We need to zip it.
+        zip_file_name = path / "autogluon"
+        shutil.make_archive(str(zip_file_name), "zip", self._ag_output_path)
+        logger.info("[%s] Zipped AutoGluon output to %s.zip", self.__class__.__name__, zip_file_name)
+
+
+__all__ = ["AutoGluonEngine"] 

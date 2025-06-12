@@ -159,83 +159,122 @@ create_directories() {
 }
 
 # Test environments
-# test_environments() {
-#     log_info "Testing environment installations..."
-#     
-#     # Test env-as
-#     log_info "Testing env-as environment..."
-#     source env-as/bin/activate
-#     
-#     if [[ "$PYTHON_CMD" == "python3.13" ]]; then
-#         python -c "
-# import sklearn
-# import numpy as np
-# import pandas as pd
-# print('✓ Base scientific environment working correctly (Auto-sklearn skipped for Python 3.13)')
-# print(f'  - Scikit-learn version: {sklearn.__version__}')
-# print(f'  - NumPy version: {np.__version__}')
-# print(f'  - Pandas version: {pd.__version__}')
-# "
-#     else
-#         python -c "
-# import auto_sklearn.regression
-# import sklearn
-# import numpy as np
-# import pandas as pd
-# print('✓ Auto-Sklearn environment working correctly')
-# print(f'  - Auto-Sklearn version: {auto_sklearn.__version__}')
-# print(f'  - Scikit-learn version: {sklearn.__version__}')
-# print(f'  - NumPy version: {np.__version__}')
-# print(f'  - Pandas version: {pd.__version__}')
-# "
-#     fi
-#     deactivate
-#     
-#     # Test env-tpa
-#     log_info "Testing env-tpa environment..."
-#     source env-tpa/bin/activate
-#     
-#     if [[ "$PYTHON_CMD" == "python3.13" ]]; then
-#         python -c "
-# import tpot
-# import sklearn
-# import numpy as np
-# import pandas as pd
-# print('✓ TPOT environment working correctly (AutoGluon skipped for Python 3.13)')
-# print(f'  - TPOT version: {tpot.__version__}')
-# print(f'  - Scikit-learn version: {sklearn.__version__}')
-# print(f'  - NumPy version: {np.__version__}')
-# print(f'  - Pandas version: {pd.__version__}')
-# try:
-#     import xgboost as xgb
-#     print(f'  - XGBoost version: {xgb.__version__}')
-# except ImportError:
-#     print('  - XGBoost: Not available')
-# try:
-#     import lightgbm as lgb
-#     print(f'  - LightGBM version: {lgb.__version__}')
-# except ImportError:
-#     print('  - LightGBM: Not available')
-# "
-#     else
-#         python -c "
-# import tpot
-# import autogluon.tabular as ag
-# import sklearn
-# import numpy as np
-# import pandas as pd
-# print('✓ TPOT + AutoGluon environment working correctly')
-# print(f'  - TPOT version: {tpot.__version__}')
-# print(f'  - AutoGluon version: {ag.__version__}')
-# print(f'  - Scikit-learn version: {sklearn.__version__}')
-# print(f'  - NumPy version: {np.__version__}')
-# print(f'  - Pandas version: {pd.__version__}')
-# "
-#     fi
-#     deactivate
-#     
-#     log_success "All environments tested successfully"
-# }
+test_environments() {
+    log_info "Testing environment installations..."
+    
+    # Test env-as
+    log_info "Testing env-as environment..."
+    source env-as/bin/activate
+    
+    if [[ "$PYTHON_CMD" == "python3.13" ]]; then
+        python -c "
+import sklearn
+import numpy as np
+import pandas as pd
+print('✓ Base scientific environment working correctly (Auto-sklearn skipped for Python 3.13)')
+print(f'  - Scikit-learn version: {sklearn.__version__}')
+print(f'  - NumPy version: {np.__version__}')
+print(f'  - Pandas version: {pd.__version__}')
+"
+    else
+        python -c "
+import auto_sklearn.regression
+import sklearn
+import numpy as np
+import pandas as pd
+print('✓ Auto-Sklearn environment working correctly')
+print(f'  - Auto-Sklearn version: {auto_sklearn.__version__}')
+print(f'  - Scikit-learn version: {sklearn.__version__}')
+print(f'  - NumPy version: {np.__version__}')
+print(f'  - Pandas version: {pd.__version__}')
+"
+    fi
+    deactivate
+    
+    # Test env-tpa
+    log_info "Testing env-tpa environment..."
+    source env-tpa/bin/activate
+    
+    if [[ "$PYTHON_CMD" == "python3.13" ]]; then
+        python -c "
+import tpot
+import sklearn
+import numpy as np
+import pandas as pd
+print('✓ TPOT environment working correctly (AutoGluon skipped for Python 3.13)')
+print(f'  - TPOT version: {tpot.__version__}')
+print(f'  - Scikit-learn version: {sklearn.__version__}')
+print(f'  - NumPy version: {np.__version__}')
+print(f'  - Pandas version: {pd.__version__}')
+try:
+    import xgboost as xgb
+    print(f'  - XGBoost version: {xgb.__version__}')
+except ImportError:
+    print('  - XGBoost: Not available')
+try:
+    import lightgbm as lgb
+    print(f'  - LightGBM version: {lgb.__version__}')
+except ImportError:
+    print('  - LightGBM: Not available')
+"
+    else
+        python -c "
+import tpot
+import autogluon.tabular as ag
+import sklearn
+import numpy as np
+import pandas as pd
+print('✓ TPOT + AutoGluon environment working correctly')
+print(f'  - TPOT version: {tpot.__version__}')
+print(f'  - AutoGluon version: {ag.__version__}')
+print(f'  - Scikit-learn version: {sklearn.__version__}')
+print(f'  - NumPy version: {np.__version__}')
+print(f'  - Pandas version: {pd.__version__}')
+"
+    fi
+    deactivate
+    
+    log_success "All environments tested successfully"
+}
+
+# Post-setup check for all installed libraries
+post_setup_check() {
+    log_info "Running post-setup checks to verify library installations..."
+    source env-tpa/bin/activate
+
+    REQUIRED_LIBS=(
+        "numpy"
+        "pandas"
+        "scikit-learn"
+        "joblib"
+        "rich"
+        "tpot"
+        "autogluon.tabular"
+        "auto_sklearn.regression"
+        "xgboost"
+        "lightgbm"
+    )
+
+    ALL_LIBS_OK=true
+    for lib in "${REQUIRED_LIBS[@]}"; do
+        log_info "Checking $lib..."
+        if ! python -c "import $lib" &> /dev/null; then
+            log_error "✗ $lib is NOT installed or cannot be imported."
+            ALL_LIBS_OK=false
+        else
+            log_success "✓ $lib is installed."
+        fi
+    done
+
+    deactivate
+
+    if ! $ALL_LIBS_OK; then
+        log_error "Post-setup check FAILED. Some required libraries are missing. Please review the errors above."
+        exit 1
+    else
+        log_success "All required libraries verified successfully!"
+    fi
+}
 
 # Create environment activation scripts
 create_activation_scripts() {
@@ -279,7 +318,8 @@ main() {
     create_directories
     create_environments
     install_env_tpa_deps
-    # test_environments  # Commented out as per the new code block
+    test_environments
+    post_setup_check
     create_activation_scripts
     
     echo ""

@@ -33,4 +33,8 @@ class PCABlock(BaseTransformerBlock):
 
     def set_params(self, **params):
         self._impl.set_params(**params)
-        return self 
+        return self
+
+    @property
+    def explained_variance_ratio_(self):
+        return self._impl.explained_variance_ratio_ 

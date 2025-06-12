@@ -20,7 +20,9 @@ class RobustScalerBlock(BaseTransformerBlock):
     signature = {
         "type": "preprocessor",
         "name": "RobustScaler",
-        "hyperparameters": {},
+        "hyperparameters": {
+            "quantile_range": "tuple",
+        },
     }
 
     def __init__(self, **kwargs):
@@ -48,4 +50,7 @@ class RobustScalerBlock(BaseTransformerBlock):
 
     def set_params(self, **params):
         self._impl.set_params(**params)
-        return self 
+        return self
+
+    # Allows inspecting meta-data for pipeline construction
+    _tags_ = {"handles_nan": True} 

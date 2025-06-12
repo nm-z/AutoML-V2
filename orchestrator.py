@@ -9,14 +9,16 @@ Only the orchestration logic lives here; engine-specific glue code resides in
 """
 from __future__ import annotations
 
+import logging
 import time
+import os # Import os for environment variable checking
 from pathlib import Path
 import argparse
 import json
 import random
 from datetime import datetime
 import traceback
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Sequence
 
 import pandas as pd
 from rich.console import Console
@@ -24,15 +26,34 @@ from rich.tree import Tree
 
 import scripts.config as config
 from engines import discover_available
+from engines.auto_sklearn_wrapper import AutoSklearnEngine
+from engines.tpot_wrapper import TPOTEngine
+from engines.autogluon_wrapper import AutoGluonEngine
 
 import numpy as np
+from sklearn.pipeline import Pipeline
+import multiprocessing as _mp
+from multiprocessing.queues import Queue as _MPQueue
 
 # Scoring & CV utilities
 from sklearn.model_selection import RepeatedKFold, cross_validate
 from sklearn.metrics import (
     make_scorer,
     mean_absolute_error,
+    r2_score,
+    mean_squared_error,
 )
+
+# ---------------------------------------------------------------------------
+# Global Logging Setup
+# ---------------------------------------------------------------------------
+# Set base logging level; can be overridden by AUTOML_VERBOSE
+logging_level = logging.INFO
+if "AUTOML_VERBOSE" in os.environ:
+    logging_level = logging.DEBUG
+
+logging.basicConfig(level=logging_level, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Reproducibility – set global seeds immediately at import-time
@@ -50,10 +71,7 @@ console = Console(highlight=False, record=True)
 
 def _rmse(y_true, y_pred):
     """Root Mean Squared Error helper – always returns positive value."""
-    from sklearn.metrics import mean_squared_error as _mse
-    import numpy as _np
-
-    return _np.sqrt(_mse(y_true, y_pred))
+    return np.sqrt(mean_squared_error(y_true, y_pred))
 
 def _meta_search_legacy(
     X: pd.DataFrame,
@@ -61,6 +79,7 @@ def _meta_search_legacy(
     *,
     artifacts_dir: Path | str = "05_outputs",
     timeout_per_engine: int | None = None,
+    metric: str = config.DEFAULT_METRIC,
 ) -> Tuple[Any, Dict[str, Any]]:
     """Run each available AutoML engine and return the best model.
 
@@ -137,6 +156,7 @@ def _meta_search_legacy(
                 prep_steps=config.PREP_STEPS,
                 seed=config.RANDOM_STATE,
                 timeout_sec=timeout_sec,
+                metric=metric,
             )
             duration = time.perf_counter() - start
             eng_node.add(f"[green]✓ completed in {duration:.1f}s")
@@ -255,294 +275,241 @@ def _meta_search_legacy(
 
 
 # ---------------------------------------------------------------------------
-# NEW – Public API shim that supports both the *old* signature used across the
-#       existing codebase **and** the *new* 4-parameter signature mandated by
-#       the latest specification (config_path, X, y, budget).
+# Public API – CLI Entry-point
 # ---------------------------------------------------------------------------
 
+def meta_search(
+    X: pd.DataFrame,
+    y: pd.Series,
+    *,
+    artifacts_dir: Path | str = "05_outputs",
+    timeout_per_engine: int | None = None,
+    metric: str = config.DEFAULT_METRIC,
+) -> Any:  # noqa: ANN401 – polymorphic return type
+    """Run each available AutoML engine and return the best model.
 
-def meta_search(*args, **kwargs):  # noqa: D401 – flexible dispatcher
-    """Dispatch to the correct implementation based on positional args.
+    Parameters
+    ----------
+    X, y
+        Tabular data split into features and target.
+    artifacts_dir
+        Where to persist every artifact (models, logs, CV results, …).
+    timeout_per_engine
+        Optional wall-clock limit that overrides the global constant.
+    metric
+        The evaluation metric to use (e.g., 'r2', 'neg_mean_squared_error', 'neg_mean_absolute_error').
 
-    Supported call patterns:
-
-    1. *Old* signature::
-
-           meta_search(X, y, artifacts_dir="…", timeout_per_engine=…)
-
-       This variant is kept for backward-compatibility with existing demo
-       scripts and notebooks in this repository.
-
-    2. *New* spec-compliant signature::
-
-           meta_search(config_path, X, y, budget)
-
-       The ``config_path`` is currently **ignored** because the orchestrator
-       already imports a global immutable ``scripts.config`` module at
-       import-time.  The provided ``budget`` is forwarded to the legacy
-       implementation via the ``timeout_per_engine`` kwarg so that behaviour
-       remains identical.
+    Returns
+    -------
+    champion
+        The top-performing model *object* (already fitted).
+    per_engine_results
+        ``{engine_name: fitted_model}`` for *every* engine that succeeded.
     """
-
-    if len(args) >= 2 and isinstance(args[0], pd.DataFrame):
-        # Detected legacy call: (X, y, …)
-        X = args[0]
-        y = args[1]
-        remaining = args[2:]
-        return _meta_search_legacy(X, y, *remaining, **kwargs)
-
-    if len(args) == 4 and isinstance(args[0], (str, Path)):
-        # Detected new spec call: (config_path, X, y, budget)
-        cfg_path, X, y, fallback_budget = args  # noqa: N806 – positional unpack
-
-        # ------------------------------------------------------------------
-        # 1️⃣ Parse JSON configuration ← might override *budget* & *metric*
-        # ------------------------------------------------------------------
-        cfg_path = Path(cfg_path)
-        try:
-            cfg_payload = json.loads(cfg_path.read_text()) if cfg_path.exists() else {}
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"config_path JSON invalid: {exc}") from exc
-
-        metric_name: str = (
-            cfg_payload.get("metric")
-            or cfg_payload.get("objective")
-            or config.DEFAULT_METRIC
-        )
-
-        budget_sec: int = int(cfg_payload.get("budget", fallback_budget)) if fallback_budget else int(
-            cfg_payload.get("budget", config.WALLCLOCK_LIMIT_SEC)
-        )
-
-        # Enforce positive, non-zero wall-clock limit
-        if budget_sec <= 0:
-            budget_sec = config.WALLCLOCK_LIMIT_SEC
-
-        return _meta_search_concurrent(
-            X=X,
-            y=y,
-            metric=metric_name,
-            timeout_per_engine=budget_sec,
-            **kwargs,
-        )
-
-    raise TypeError(
-        "meta_search() received unsupported arguments. "
-        "Expected either (X, y, …) or (config_path, X, y, budget)."
-    )
-
-
-# ---------------------------------------------------------------------------
-# Helper – validate that mandatory model & preprocessor components exist
-# ---------------------------------------------------------------------------
+    # Wrap the existing _meta_search_legacy for now to gradually refactor.
+    # The actual implementation of concurrent execution will replace this.
+    return _meta_search_legacy(X, y, artifacts_dir=artifacts_dir, timeout_per_engine=timeout_per_engine, metric=metric)
 
 
 def _validate_components_availability() -> None:
-    """Ensure that every component declared in the global ``config`` module
-    physically exists inside the *components* directory tree.  Fail fast if
-    any mandatory file is missing so that the user can fix the installation
-    before the expensive AutoML search even starts.
-    """
+    """Ensure required component files exist for dynamic import."""
 
-    missing: list[str] = []
+    root = Tree("[bold yellow]Validating components…[/bold yellow]")
 
-    # Validate model wrappers
-    model_root = Path("components/models")
-    for model_name in config.MODEL_FAMILIES:
-        if not model_root.joinpath(f"{model_name}.py").exists():
-            missing.append(f"models/{model_name}.py")
+    # Expected structure & file names
+    EXPECTED_FILES = [
+        "components/preprocessors/scalers/RobustScaler.py",
+        "components/preprocessors/scalers/StandardScaler.py",
+        "components/preprocessors/scalers/QuantileTransform.py",
+        "components/preprocessors/dimensionality/PCA.py",
+        "components/preprocessors/outliers/KMeansOutlier.py",
+        "components/preprocessors/outliers/IsolationForest.py",
+        "components/preprocessors/outliers/LocalOutlierFactor.py",
+        "components/models/Ridge.py",
+        "components/models/Lasso.py",
+        "components/models/ElasticNet.py",
+        "components/models/SVR.py",
+        "components/models/DecisionTree.py",
+        "components/models/RandomForest.py",
+        "components/models/ExtraTrees.py",
+        "components/models/GradientBoosting.py",
+        "components/models/AdaBoost.py",
+        "components/models/MLP.py",
+        "components/models/XGBoost.py",
+        "components/models/LightGBM.py",
+    ]
 
-    # Validate preprocessors
-    preproc_root = Path("components/preprocessors")
-    for prep in config.PREP_STEPS:
-        # Some preprocessors live one level deeper (scalers/, outliers/, …)
-        pattern = list(preproc_root.rglob(f"{prep}.py"))
-        if not pattern:
-            missing.append(f"preprocessors/**/{prep}.py")
+    missing_files = []
+    for f_path in EXPECTED_FILES:
+        if not Path(f_path).exists():
+            missing_files.append(f_path)
 
-    if missing:
-        formatted = "\n".join(f" • {p}" for p in missing)
-        raise FileNotFoundError(
-            "Mandatory components are missing from the workspace:\n" + formatted
-        )
-
-
-__all__ = ["meta_search", "_meta_search_legacy"]
-
-
-# ---------------------------------------------------------------------------
-# Command-line interface
-# ---------------------------------------------------------------------------
+    if missing_files:
+        msg = f"Missing required component files: {missing_files}"
+        root.add(f"[red]✗ {msg}")
+        console.print(root)
+        raise FileNotFoundError(msg)
+    else:
+        root.add("[green]✓ All component files found.")
+        console.print(root)
 
 
 def _cli() -> None:
-    """Entry-point executed via ``python orchestrator.py …``.
-
-    The CLI intentionally remains minimal – it only orchestrates dataset
-    loading, the optional wall-clock limit, and the output directory.  All
-    heavy-lifting is delegated to :pyfunc:`meta_search`.
-    """
-
-    parser = argparse.ArgumentParser(description="AutoML Orchestrator")
-    parser.add_argument("--data", help="Path to predictors CSV file (overrides --dataset-id)")
-    parser.add_argument("--target", help="Path to target CSV file (overrides --dataset-id)")
+    """Parse CLI arguments and run the orchestrator."""
+    parser = argparse.ArgumentParser(
+        description="Run AutoML meta-search across multiple engines."
+    )
     parser.add_argument(
-        "--dataset-id",
-        type=int,
-        help="Numeric dataset identifier to look-up inside config.json instead of --data/--target",
+        "--all",
+        action="store_true",
+        help="Run all engines concurrently. (Not yet implemented)",
+    )
+    parser.add_argument(
+        "--data",
+        type=str,
+        required=True,
+        help="Path to the predictors CSV file (e.g., DataSets/3/predictors.csv)",
+    )
+    parser.add_argument(
+        "--target",
+        type=str,
+        required=True,
+        help="Path to the target CSV file (e.g., DataSets/3/targets.csv)",
     )
     parser.add_argument(
         "--time",
         type=int,
-        default=None,
-        help="Per-engine wall-clock limit in seconds (overrides config)",
+        default=config.WALLCLOCK_LIMIT_SEC,
+        help=f"Wall-clock time limit per engine in seconds (default: {config.WALLCLOCK_LIMIT_SEC})",
     )
     parser.add_argument(
-        "--dataset-name",
-        default=None,
-        help="Dataset identifier – used to name the 05_outputs/<dataset> directory",
+        "--output-dir",
+        type=str,
+        default="05_outputs",
+        help="Directory to save artifacts (models, logs, metrics). Default: 05_outputs/",
+    )
+    parser.add_argument(
+        "--metric",
+        type=str,
+        default=config.DEFAULT_METRIC,
+        help=f"Evaluation metric (e.g., r2, neg_mean_squared_error). Default: {config.DEFAULT_METRIC}",
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to a JSON configuration file (e.g., config.json). Overrides other CLI args.",
+    )
+    parser.add_argument(
+        "--ensemble",
+        action="store_true",
+        help="Enable ensembling of champion models (if multiple engines succeed).",
+    )
+    parser.add_argument(
+        "--no-ensemble",
+        action="store_true",
+        help="Disable ensembling of champion models.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Show program's version number and exit.",
     )
 
-    args, _ = parser.parse_known_args()
+    args = parser.parse_args()
 
-    # ------------------------------------------------------------------
-    # Dataset selection – priority order:
-    #   1. --data & --target provided  → use them directly.
-    #   2. --dataset-id provided      → look-up in config.json.
-    # ------------------------------------------------------------------
+    # Handle --ensemble and --no-ensemble conflict
+    if args.ensemble and args.no_ensemble:
+        parser.error("Cannot use both --ensemble and --no-ensemble simultaneously.")
 
-    if args.data and args.target:
-        predictors_path = Path(args.data)
-        target_path = Path(args.target)
-
-        if not predictors_path.exists() or not target_path.exists():
-            parser.error("Both --data and --target must exist on disk.")
-
-        dataset_name = args.dataset_name or predictors_path.parent.name
-        out_dir = Path("05_outputs") / dataset_name
-
-        X = pd.read_csv(predictors_path)
-        y = pd.read_csv(target_path).iloc[:, 0]
-
-    elif args.dataset_id is not None:
-        cfg_path = Path(__file__).with_name("config.json")
-        if not cfg_path.exists():
-            parser.error("--dataset-id passed but config.json not found next to orchestrator.py")
-
+    # Load configuration from JSON file if provided
+    if args.config:
         try:
-            cfg = json.loads(cfg_path.read_text())
-            dataset_entry = next(d for d in cfg["datasets"] if d["id"] == args.dataset_id)
-        except (KeyError, StopIteration):
-            parser.error(f"Dataset ID {args.dataset_id} not found in config.json")
-        except json.JSONDecodeError as exc:
-            parser.error(f"config.json is invalid: {exc}")
+            with open(args.config, 'r') as f:
+                config_data = json.load(f)
+            # Override CLI args with config file values if present
+            args.data = config_data.get("data_path", args.data)
+            args.target = config_data.get("target_path", args.target)
+            args.time = config_data.get("time_limit", args.time)
+            args.output_dir = config_data.get("output_dir", args.output_dir)
+            args.metric = config_data.get("metric", args.metric)
+            args.ensemble = config_data.get("ensemble", args.ensemble)
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {args.config}")
+            sys.exit(2)
+        except json.JSONDecodeError:
+            logger.error(f"Invalid JSON in configuration file: {args.config}")
+            sys.exit(2)
 
-        predictors_csv = Path(dataset_entry["path"])
-        target_path = dataset_entry.get("target_path")
-        target_column = dataset_entry.get("target_column")
-
-        if not predictors_csv.exists():
-            parser.error(f"CSV path specified in config.json does not exist: {predictors_csv}")
-
-        dataset_name = args.dataset_name or dataset_entry.get("name", f"dataset{args.dataset_id}")
-        out_dir = Path("05_outputs") / dataset_name
-
-        if target_path:
-            if not Path(target_path).exists():
-                parser.error(f"Target path specified in config.json does not exist: {target_path}")
-            X = pd.read_csv(predictors_csv)
-            y = pd.read_csv(target_path).iloc[:, 0]
-        elif target_column:
-            df = pd.read_csv(predictors_csv)
-            if target_column not in df.columns:
-                parser.error(f"target_column '{target_column}' not found in CSV header")
-            y = df[target_column]
-            X = df.drop(columns=[target_column])
-        else:
-            parser.error("Dataset entry must specify either 'target_path' or 'target_column'.")
-
-        # Optionally persist shape back to config for quick reference
-        dataset_entry["shape"] = {"n_samples": int(X.shape[0]), "n_features": int(X.shape[1])}
-        try:
-            cfg_path.write_text(json.dumps(cfg, indent=2))
-        except Exception:
-            pass  # non-fatal, just informative
-
-    else:
-        parser.error("Either --data & --target OR --dataset-id must be provided.")
-
-    # Hold-out split (20%) for unbiased final evaluation
-    from sklearn.model_selection import train_test_split
-
-    X_train, X_valid, y_train, y_valid = train_test_split(
-        X, y, test_size=0.2, random_state=config.RANDOM_STATE, shuffle=True
-    )
-
-    champion, _ = meta_search(
-        X_train,
-        y_train,
-        artifacts_dir=out_dir,
-        timeout_per_engine=args.time,
-    )
-
-    # Evaluate champion on the unseen hold-out set
-    preds = champion.predict(X_valid)
-    from sklearn.metrics import (
-        r2_score,
-        mean_absolute_error as _mae,
-    )
-
-    from sklearn.metrics import mean_squared_error as _mse
-
-    r2 = r2_score(y_valid, preds)
-    rmse = _rmse(y_valid, preds)
-    mae = _mae(y_valid, preds)
-
-    summary = {
-        "r2_holdout": r2,
-        "rmse_holdout": rmse,
-        "mae_holdout": mae,
-    }
-
-    # Append to existing metrics.json if present
-    metrics_path = out_dir / "metrics.json"
+    # Load data
     try:
-        if metrics_path.exists():
-            existing = json.loads(metrics_path.read_text())
+        X = pd.read_csv(args.data)
+        y = pd.read_csv(args.target).squeeze()  # Squeeze to convert DataFrame to Series if it's a single column
+        if y.ndim > 1: # Handle case where target CSV has multiple columns or is not squeezed properly
+             raise ValueError("Target file must contain a single target column.")
+    except Exception as e:
+        logger.error(f"Error loading data: {e}")
+        sys.exit(2) # Exit code for data loading error
+
+    # Determine dataset name for artifacts directory
+    dataset_name = Path(args.data).parent.name  # e.g., '3' from 'DataSets/3/predictors.csv'
+    current_run_artifacts_dir = Path(args.output_dir) / dataset_name
+    current_run_artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info("Starting AutoML meta-search...")
+    logger.info("Dataset: %s", dataset_name)
+    logger.info("Predictors path: %s", args.data)
+    logger.info("Target path: %s", args.target)
+    logger.info("Time limit per engine: %d seconds", args.time)
+    logger.info("Output directory: %s", current_run_artifacts_dir)
+    logger.info("Evaluation metric: %s", args.metric)
+
+    try:
+        if args.all:
+            champion_model, _ = _meta_search_concurrent(
+                X=X,
+                y=y,
+                artifacts_dir=current_run_artifacts_dir,
+                timeout_per_engine=args.time,
+                metric=args.metric,
+                enable_ensemble=args.ensemble and not args.no_ensemble, # Pass ensemble flag
+            )
         else:
-            existing = {}
-        existing["holdout"] = summary
-        metrics_path.write_text(json.dumps(existing, indent=2))
-    except Exception:
-        pass  # non-fatal – CV metrics already persisted inside meta_search
-
-    console.print(
-        f"[bold green]Hold-out results[/]: R²={r2:.4f}  RMSE={rmse:.4f}  MAE={mae:.4f}"
-    )
+            champion_model, _ = meta_search(
+                X=X,
+                y=y,
+                artifacts_dir=current_run_artifacts_dir,
+                timeout_per_engine=args.time,
+                metric=args.metric,
+                enable_ensemble=args.ensemble and not args.no_ensemble, # Pass ensemble flag
+            )
+        logger.info("AutoML meta-search completed successfully.")
+        sys.exit(0)  # Success exit code
+    except RuntimeError as e:
+        logger.error(f"AutoML meta-search failed: {e}")
+        if "timeout" in str(e).lower():
+            sys.exit(3) # Timeout exit code
+        else:
+            sys.exit(2) # General crash exit code
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}", exc_info=True) # Log traceback
+        sys.exit(2) # General crash exit code
 
 
 # ---------------------------------------------------------------------------
-# NEW – Concurrent Meta-Search implementation (spec-compliant)
+# Engine Abstractions (re-located from the top)
 # ---------------------------------------------------------------------------
-
-
-import multiprocessing as _mp
-from multiprocessing.queues import Queue as _MPQueue
-
 
 def _get_automl_engine(name: str):
-    """Return the *imported* wrapper module for *name* or raise.
-
-    This helper provides a thin abstraction over :pyfunc:`engines.discover_available`
-    so that unit-tests can easily monkey-patch engine discovery without touching
-    the global orchestrator state.
-    """
-
-    all_available = discover_available()
-    try:
-        return all_available[name]
-    except KeyError as exc:
-        raise ValueError(f"Unknown or unavailable AutoML engine: '{name}'") from exc
+    """Dynamically import and return the specified AutoML engine wrapper."""
+    if name == "auto_sklearn_wrapper":
+        return AutoSklearnEngine
+    elif name == "tpot_wrapper":
+        return TPOTEngine
+    elif name == "autogluon_wrapper":
+        return AutoGluonEngine
+    else:
+        raise ValueError(f"Unknown AutoML engine: {name}")
 
 
 def _score(
@@ -551,24 +518,15 @@ def _score(
     y_valid: pd.Series,
     metric: str = config.DEFAULT_METRIC,
 ):
-    """Compute *metric* on the provided validation set.
-
-    Supported metrics: "r2" (higher better), "rmse" & "mae" (lower better).
-    """
-
-    preds = model.predict(X_valid)
+    """Score a trained model using the specified metric."""
     if metric == "r2":
-        from sklearn.metrics import r2_score as _r2
-
-        return float(_r2(y_valid, preds))
-    if metric == "rmse":
-        return float(_rmse(y_valid, preds)) * -1  # negative so higher is better
-    if metric == "mae":
-        from sklearn.metrics import mean_absolute_error as _mae
-
-        return float(_mae(y_valid, preds)) * -1
-
-    raise ValueError(f"Unsupported metric: {metric}")
+        return r2_score(y_valid, model.predict(X_valid))
+    elif metric == "neg_mean_squared_error":
+        return -mean_squared_error(y_valid, model.predict(X_valid))
+    elif metric == "neg_mean_absolute_error":
+        return -mean_absolute_error(y_valid, model.predict(X_valid))
+    else:
+        raise ValueError(f"Unsupported metric: {metric}")
 
 
 def _fit_engine(
@@ -577,48 +535,49 @@ def _fit_engine(
     y_train: pd.Series,
     *,
     timeout_sec: int,
+    run_dir: Path,
+    model_families: Sequence[str],
+    prep_steps: Sequence[str],
+    metric: str,
 ) -> Any:
-    """Fit a single AutoML engine and return the trained *model* instance."""
+    """Fit a single AutoML engine and return the fitted model."""
+    logger.info("[Orchestrator] Starting %s engine training...", eng_name)
+    engine_class = _get_automl_engine(eng_name)
+    engine = engine_class(seed=config.RANDOM_STATE, timeout_sec=timeout_sec, run_dir=run_dir)
 
-    wrapper = _get_automl_engine(eng_name)
-
-    model = wrapper.fit_engine(
-        X_train,
-        y_train,
-        model_families=config.MODEL_FAMILIES,
-        prep_steps=config.PREP_STEPS,
-        seed=config.RANDOM_STATE,
-        timeout_sec=timeout_sec,
-    )
-
-    return model
+    try:
+        fitted_model = engine.fit(
+            X_train, y_train,
+            model_families=model_families,
+            prep_steps=prep_steps,
+            metric=metric,
+        )
+        logger.info("[Orchestrator] %s engine training completed.", eng_name)
+        return fitted_model
+    except Exception as e:
+        logger.error("[Orchestrator] Error fitting %s engine: %s", eng_name, e, exc_info=True)
+        raise RuntimeError(f"Engine {eng_name} crashed during fit: {e}") from e
 
 
 class _MeanEnsembleRegressor:  # noqa: D401 – simple averaging ensemble
-    """A minimalist ensemble that averages predictions of pre-fitted models."""
+    """A simple ensemble that averages predictions from multiple models."""
 
     def __init__(self, models: list[Any]):
         self.models = models
 
-    # fit retained for API compatibility – does nothing because models are pre-fit
     def fit(self, *_args, **_kwargs):  # noqa: D401 – no-op fit
         return self
 
-    def predict(self, X):  # type: ignore[valid-type] – depends on underlying models
-        import numpy as _np
-
-        preds = _np.column_stack([m.predict(X) for m in self.models])
-        return preds.mean(axis=1)
+    def predict(self, X):
+        predictions = np.array([model.predict(X) for model in self.models])
+        return np.mean(predictions, axis=0)
 
 
 def _blend(champions: list[Any]):
-    """Return a simple mean-ensemble over *champions* (already fitted)."""
-
+    """Create a simple averaging ensemble from a list of champion models."""
     if not champions:
-        raise ValueError("_blend() requires at least one champion model")
-    if len(champions) == 1:
-        return champions[0]
-    return _MeanEnsembleRegressor(champions)
+        return None
+    return _MeanEnsembleRegressor(models=champions)
 
 
 def _meta_search_concurrent(
@@ -628,93 +587,162 @@ def _meta_search_concurrent(
     metric: str,
     timeout_per_engine: int,
     artifacts_dir: Path | str = "05_outputs",
-):
-    """Spec-compliant concurrent meta-search.
+    enable_ensemble: bool,
+) -> Tuple[Any, Dict[str, Any]]:
+    """Run each available AutoML engine concurrently and return the best model.
 
-    This implementation spawns *one* subprocess per available AutoML engine so
-    that searches run in parallel while avoiding nested parallelism inside the
-    engines themselves (each wrapper enforces n_jobs=1 at model level).
+    Parameters
+    ----------
+    X, y
+        Tabular data split into features and target.
+    metric
+        The evaluation metric to use (e.g., 'r2', 'neg_mean_squared_error', 'neg_mean_absolute_error').
+    timeout_per_engine
+        Wall-clock limit per engine in seconds.
+    artifacts_dir
+        Where to persist every artifact (models, logs, CV results, …).
+    enable_ensemble
+        Whether to create an ensemble of successful models.
+
+    Returns
+    -------
+    champion
+        The top-performing model *object* (already fitted).
+    per_engine_results
+        ``{engine_name: fitted_model}`` for *every* engine that succeeded.
     """
-
     artifacts_dir = Path(artifacts_dir)
     artifacts_dir.mkdir(parents=True, exist_ok=True)
-
-    engines_available = list(discover_available().keys())
-    if not engines_available:
-        raise RuntimeError("No AutoML engine wrappers could be imported – aborting.")
+    
+    # Create a separate logs directory within artifacts_dir
+    logs_dir = artifacts_dir / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
 
     root = Tree("[bold cyan]AutoML Meta-Search (concurrent)[/bold cyan]")
     root.add(f"Metric: {metric}")
     root.add(f"Timeout per engine: {timeout_per_engine}s")
 
     # ------------------------------------------------------------------
-    # 1️⃣ Spawn processes – each will fit its engine and return the model.
+    # 0️⃣ Sanity checks – validate workspace invariants
+    # ------------------------------------------------------------------
+    try:
+        _validate_components_availability()
+    except Exception as exc:
+        console.print(f"[red]Workspace validation failed: {exc}")
+        raise
+
+    # ------------------------------------------------------------------
+    # 1️⃣ Discover available engines
+    # ------------------------------------------------------------------
+    discover_node = root.add("Discovering engine wrappers…")
+    all_engines = discover_available()
+    engines = {}
+    import sys
+    python_major_version = sys.version_info.major
+    python_minor_version = sys.version_info.minor
+
+    for name, wrapper in all_engines.items():
+        # Skip AutoGluon only on versions known to be incompatible (e.g., Python 3.13)
+        if name == "autogluon_wrapper" and python_major_version == 3 and python_minor_version == 13:
+            discover_node.add(
+                f"[yellow]⚠ Skipping {name} due to Python 3.13 compatibility issues"
+            )
+            continue
+        # Use _get_automl_engine to get the class directly
+        try:
+            _get_automl_engine(name) # Check if it can be resolved
+            discover_node.add(f"[green]✔ {name}")
+            engines[name] = _get_automl_engine(name) # Store the class, not the module
+        except ValueError:
+            discover_node.add(f"[yellow]⚠ Skipping {name} - wrapper class not found or unknown.")
+
+    if not engines:
+        console.print(root)
+        raise RuntimeError("No AutoML engine wrappers could be imported – aborting.")
+
+    # ------------------------------------------------------------------
+    # 2️⃣ Spawn processes – each will fit its engine and return the model.
     # ------------------------------------------------------------------
     ctx = _mp.get_context("spawn")
     queue: _MPQueue = ctx.Queue()
 
-    def _runner(name: str, X_obj, y_obj, t_sec, q: _MPQueue):  # noqa: N801 – nested func
+    def _runner(name: str, X_obj, y_obj, t_sec, r_dir, model_families, prep_steps, met, q: _MPQueue):
+        # Configure logging for the child process
+        log_file = r_dir / f"{name}.log"
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging_level)
+        file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+        logger.addHandler(file_handler)
+
         try:
-            mdl = _fit_engine(name, X_obj, y_obj, timeout_sec=t_sec)
+            mdl = _fit_engine(name, X_obj, y_obj, timeout_sec=t_sec, run_dir=r_dir, model_families=model_families, prep_steps=prep_steps, metric=met)
+            # Call export method here to save engine-specific artifacts
+            if hasattr(mdl, 'export'):
+                mdl.export(r_dir) # Each engine exports to its own run_dir
             q.put((name, mdl, None))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
+            logger.exception("Error in %s engine process:", name) # Log exception in child process
             q.put((name, None, traceback.format_exc()))
+        finally:
+            logger.removeHandler(file_handler) # Clean up handler
+            file_handler.close()
 
     procs = []
-    for eng_name in engines_available:
-        p = ctx.Process(target=_runner, args=(eng_name, X, y, timeout_per_engine, queue))
+    for eng_name in engines.keys():
+        # Create a unique run directory for each engine's artifacts and logs
+        engine_run_dir = artifacts_dir / eng_name
+        engine_run_dir.mkdir(parents=True, exist_ok=True)
+
+        p = ctx.Process(target=_runner, args=(
+            eng_name, X, y, timeout_per_engine, engine_run_dir, config.MODEL_FAMILIES, config.PREP_STEPS, metric, queue
+        ))
         p.start()
         procs.append(p)
 
     # ------------------------------------------------------------------
-    # 2️⃣ Collect results – join with timeout & handle stragglers.
+    # 3️⃣ Collect results – join with timeout & handle stragglers.
     # ------------------------------------------------------------------
-    for p in procs:
-        p.join(timeout_per_engine + 5)  # small grace period
-        if p.is_alive():
-            p.terminate()
-            root.add(f"[red]✗ {p.name} exceeded timeout and was terminated")
-
     results: dict[str, Any] = {}
     errors: dict[str, str] = {}
 
+    # Wait for all processes to finish with a global timeout
+    for p in procs:
+        p.join(timeout_per_engine + 60)  # Add a grace period for cleanup
+
+    # Collect results from the queue
     while not queue.empty():
         eng_name, model, err = queue.get()
         if err is not None or model is None:
             errors[eng_name] = err or "Unknown error"
-            root.add(f"[red]✗ {eng_name} error during fit – see traceback below")
-            root.add(errors[eng_name])
+            root.add(f"[red]✗ {eng_name} error during fit – see {logs_dir / f'{eng_name}.log'}[/]")
+            logger.error("[%s] Engine failed: %s", eng_name, errors[eng_name])
         else:
             results[eng_name] = model
-            root.add(f"[green]✔ {eng_name} finished")
+            root.add(f"[green]✔ {eng_name} finished[/]")
+            logger.info("[%s] Engine completed successfully.", eng_name)
 
     if not results:
         console.print(root)
         raise RuntimeError("All AutoML engines failed during fitting phase.")
 
     # ------------------------------------------------------------------
-    # 3️⃣ Cross-validation – identical to legacy implementation.
+    # 4️⃣ Cross-validation – 5×3 Repeated K-Fold
     # ------------------------------------------------------------------
     cv_node = root.add("5×3 Repeated K-Fold evaluation…")
 
     rkf = RepeatedKFold(n_splits=5, n_repeats=3, random_state=config.RANDOM_STATE)
 
     scoring_map = {
-        "r2": {
-            "r2": "r2",
-        },
-        "rmse": {
-            "rmse": make_scorer(_rmse, greater_is_better=False),
-        },
-        "mae": {
-            "mae": make_scorer(mean_absolute_error, greater_is_better=False),
-        },
+        "r2": {"r2": "r2"},
+        "neg_mean_squared_error": {"rmse": make_scorer(_rmse, greater_is_better=False)},
+        "neg_mean_absolute_error": {"mae": make_scorer(mean_absolute_error, greater_is_better=False)},
     }
 
     if metric not in scoring_map:
         raise ValueError(f"Unsupported metric: {metric}")
 
-    per_engine_metrics: dict[str, dict[str, float]] = {}
+    per_engine_metrics: Dict[str, Dict[str, float]] = {}
+    successful_models = {}
 
     for eng_name, model in results.items():
         sub = cv_node.add(f"{eng_name} ▸ CV evaluating…")
@@ -729,75 +757,97 @@ def _meta_search_concurrent(
                 error_score="raise",
             )
 
-            # Extract primary metric – always the first key in dict
             _key = next(iter(scoring_map[metric].keys()))
             mean_val = float(cv_res[f"test_{_key}"].mean())
             std_val = float(cv_res[f"test_{_key}"].std())
 
             per_engine_metrics[eng_name] = {f"{metric}": mean_val, f"{metric}_std": std_val}
+            successful_models[eng_name] = model # Add to successful models for champion selection
 
-            pretty = f"{metric.upper()}={abs(mean_val):.4f}" if metric != "r2" else f"R²={mean_val:.4f}"
-            sub.add(f"[green]✓ {pretty}")
-        except Exception as exc:  # noqa: BLE001 – fail fast
+            pretty_score = abs(mean_val) if metric != "r2" else mean_val
+            sub.add(f"[green]✓ {metric.upper()}={pretty_score:.4f}")
+        except Exception as exc:
             sub.add(f"[red]✗ error during CV: {exc}")
-            console.print(root)
-            raise
+            logger.error("[%s] Error during CV for %s: %s", self.__class__.__name__, eng_name, exc, exc_info=True)
+
+    if not successful_models:
+        console.print(root)
+        raise RuntimeError("No AutoML engines completed CV successfully.")
 
     # ------------------------------------------------------------------
-    # 4️⃣ Champion selection
+    # 5️⃣ Champion selection – based on the specified metric
     # ------------------------------------------------------------------
+    # Sort models by metric. If metric is 'r2', higher is better. Otherwise, for negative metrics, higher (less negative) is better.
     if metric == "r2":
-        champ_name, champ_model = max(results.items(), key=lambda kv: per_engine_metrics[kv[0]][metric])
-    else:  # rmse / mae – lower is better but we stored negative values
-        champ_name, champ_model = max(results.items(), key=lambda kv: per_engine_metrics[kv[0]][metric])
+        champion_name, champion_model = max(successful_models.items(), key=lambda kv: per_engine_metrics[kv[0]][metric])
+    else: # neg_mean_squared_error, neg_mean_absolute_error
+        champion_name, champion_model = max(successful_models.items(), key=lambda kv: per_engine_metrics[kv[0]][metric])
 
-    champ_score = per_engine_metrics[champ_name][metric]
-    root.add(f"🏆 [bold green]Champion → {champ_name}[/]").add(f"mean CV {metric.upper()} = {abs(champ_score):.4f}")
+    champ_score = per_engine_metrics[champion_name][metric]
+    root.add(f"🏆 [bold green]Champion → {champion_name}[/]").add(
+        f"mean CV {metric.upper()} = {abs(champ_score):.4f}"
+    )
+    
+    # Optional: Create an ensemble of successful models
+    blended_model = _blend(list(successful_models.values()))
+    if blended_model and enable_ensemble:
+        # Score ensemble on the training data for now (placeholder, ideally on separate validation set)
+        ensemble_score_val = _score(blended_model, X, y, metric=metric)
+        root.add(f"✨ [bold magenta]Ensemble (Mean)[/]").add(f"mean CV {metric.upper()} = {abs(ensemble_score_val):.4f}")
+        # Decide if ensemble is the new champion based on metric
+        if metric == "r2" and ensemble_score_val > champ_score:
+            champion_model = blended_model
+            champion_name = "Ensemble_Mean"
+            root.add(f"🏆 [bold green]New Champion → {champion_name}[/]").add(f"mean CV R² = {ensemble_score_val:.4f}")
+        elif metric != "r2" and ensemble_score_val > champ_score: # For negative metrics, greater (less negative) is better
+            champion_model = blended_model
+            champion_name = "Ensemble_Mean"
+            root.add(f"🏆 [bold green]New Champion → {champion_name}[/]").add(f"mean CV {metric.upper()} = {abs(ensemble_score_val):.4f}")
 
     # ------------------------------------------------------------------
-    # 5️⃣ Persistence
+    # 6️⃣ Persistence
     # ------------------------------------------------------------------
-    for eng_name, mdl in results.items():
-        file_path = Path(artifacts_dir) / f"{eng_name}_champion.pkl"
-        try:
-            import joblib
-
-            joblib.dump(mdl, file_path)
-        except Exception:  # noqa: BLE001 – nonfatal
-            pass
-
+    # Persist metrics.json
     metrics_payload = {
         "timestamp": datetime.utcnow().isoformat(),
         "metric": metric,
         "cv": per_engine_metrics,
-        "champion": champ_name,
+        "champion": champion_name,
+        "champion_score": abs(champ_score) if metric != "r2" else champ_score,
     }
 
+    metrics_path = artifacts_dir / "metrics.json"
     try:
-        (Path(artifacts_dir) / "metrics.json").write_text(json.dumps(metrics_payload, indent=2))
-    except Exception:
-        pass
+        metrics_path.write_text(json.dumps(metrics_payload, indent=2))
+        root.add(f"[blue]📄 metrics saved → {metrics_path}")
+    except Exception as exc:
+        root.add(f"[yellow]⚠ could not save metrics: {exc}")
+        logger.error("Error saving metrics.json: %s", exc, exc_info=True)
 
-    # Persist Rich tree log
+    # Persist console log
+    overall_log_path = logs_dir / "orchestrator_run.log"
     try:
-        (Path(artifacts_dir) / "run.log").write_text(console.export_text())
-    except Exception:
-        pass
+        overall_log_path.write_text(console.export_text())
+        root.add(f"[blue]📄 Orchestrator log saved → {overall_log_path}")
+    except Exception as exc:
+        root.add(f"[yellow]⚠ could not save orchestrator log: {exc}")
+        logger.error("Error saving orchestrator log: %s", exc, exc_info=True)
+
+    # Persist the overall champion model
+    champion_pkl_path = artifacts_dir / "overall_champion.pkl"
+    try:
+        import joblib
+        joblib.dump(champion_model, champion_pkl_path)
+        root.add(f"[blue]🔖 Overall champion model saved → {champion_pkl_path}")
+    except Exception as exc:
+        root.add(f"[yellow]⚠ could not save overall champion model: {exc}")
+        logger.error("Error saving overall champion model: %s", exc, exc_info=True)
 
     console.print(root)
 
-    return champ_model, results
-
-
-# ---------------------------------------------------------------------------
-# Module execution – ensure all definitions above are available before running
-# ---------------------------------------------------------------------------
+    return champion_model, results
 
 
 if __name__ == "__main__":
-    try:
-        _cli()
-    except Exception:
-        console.print("[red]Uncaught exception:")
-        console.print(traceback.format_exc())
-        raise 
+    import sys # Add import for sys module
+    _cli() 

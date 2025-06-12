@@ -24,30 +24,32 @@ N_JOBS_MODEL: int = 1
 # ---------------------------------------------------------------------------
 # Search-Space Definition (Tables 1 & 2)
 # ---------------------------------------------------------------------------
-MODEL_FAMILIES: Tuple[str, ...] = (
-    "Ridge",
-    "Lasso",
-    "ElasticNet",
-    "SVR",
-    "DecisionTree",
-    "RandomForest",
-    "ExtraTrees",
-    "GradientBoosting",
-    "AdaBoost",
-    "MLP",
-    "XGBoost",
-    "LightGBM",
-)
+# MODEL_FAMILIES: Tuple[str, ...] = (
+#     "Ridge",
+#     "Lasso",
+#     "ElasticNet",
+#     "SVR",
+#     "DecisionTree",
+#     "RandomForest",
+#     "ExtraTrees",
+#     "GradientBoosting",
+#     "AdaBoost",
+#     "MLP",
+#     "XGBoost",
+#     "LightGBM",
+# )
+MODEL_FAMILIES: Tuple[str, ...] = tuple(_MODEL_SPACE.keys())
 
-PREP_STEPS: Tuple[str, ...] = (
-    "PCA",
-    "RobustScaler",
-    "StandardScaler",
-    "KMeansOutlier",
-    "IsolationForest",
-    "LocalOutlierFactor",
-    "QuantileTransform",
-)
+# PREP_STEPS: Tuple[str, ...] = (
+#     "PCA",
+#     "RobustScaler",
+#     "StandardScaler",
+#     "KMeansOutlier",
+#     "IsolationForest",
+#     "LocalOutlierFactor",
+#     "QuantileTransform",
+# )
+PREP_STEPS: Tuple[str, ...] = tuple(_PREPROCESSOR_SPACE.keys())
 
 # ---------------------------------------------------------------------------
 # Engine Budgets
@@ -124,7 +126,7 @@ _MODEL_SPACE: dict[str, dict] = {
 
 _PREPROCESSOR_SPACE: dict[str, dict] = {
     "PCA": {"n_components": list(range(5, 55, 5))},
-    "RobustScaler": {},
+    "RobustScaler": {"quantile_range": [[10.0, 90.0], [25.0, 75.0]]},
     "StandardScaler": {},
     "KMeansOutlier": {"n_clusters": [3, 5, 8]},
     "IsolationForest": {
@@ -151,10 +153,8 @@ def get_space(kind: str):
     Returns
     -------
     dict
-        A mapping suitable for AutoML engine consumption.  For now this
-        function returns **empty dicts** as placeholders so that interfaces
-        do not break while the detailed hyper-parameter grids from Tables 1 &
-        2 are still under construction.
+        A mapping suitable for AutoML engine consumption.  This function
+        returns the detailed hyper-parameter grids from Tables 1 & 2.
     """
     if kind == "model":
         return _MODEL_SPACE.copy()
