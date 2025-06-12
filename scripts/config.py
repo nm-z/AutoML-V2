@@ -61,6 +61,84 @@ WALLCLOCK_LIMIT_SEC: int = 3_600  # default per AutoML engine
 DEFAULT_METRIC: str = "r2"  # Do *not* hard-code a target – metric only.
 
 # ---------------------------------------------------------------------------
+# Search-Space – concrete hyper-parameter grids (immutable)
+# ---------------------------------------------------------------------------
+# NOTE: These ranges are intentionally **narrow** and free of manual tuning –
+# they merely expose *representative* values so that each engine can exercise
+# every primitive without exploding the Cartesian search volume.  Update with
+# care: any change here alters the deterministic search-space guaranteed by
+# the spec.
+
+_MODEL_SPACE: dict[str, dict] = {
+    "Ridge": {"alpha": [0.1, 1.0, 10.0]},
+    "RPOP": {},  # Placeholder – no scikit-learn equivalent
+    "Lasso": {"alpha": [0.001, 0.01, 0.1, 1.0], "max_iter": [2000]},
+    "ElasticNet": {
+        "alpha": [0.001, 0.01, 0.1, 1.0],
+        "l1_ratio": [0.1, 0.5, 0.9],
+        "max_iter": [2000],
+    },
+    "SVR": {
+        "C": [0.1, 1.0, 10.0],
+        "gamma": ["scale", "auto"],
+        "kernel": ["rbf", "poly"],
+    },
+    "DecisionTree": {
+        "max_depth": [None, 5, 10, 20],
+        "min_samples_split": [2, 5, 10],
+    },
+    "RandomForest": {
+        "n_estimators": [100, 300, 500],
+        "max_depth": [None, 10, 20],
+        "min_samples_split": [2, 5],
+        "max_features": ["sqrt", "log2"],
+    },
+    "ExtraTrees": {
+        "n_estimators": [100, 300],
+        "max_depth": [None, 10, 20],
+    },
+    "GradientBoosting": {
+        "n_estimators": [100, 300],
+        "learning_rate": [0.05, 0.1, 0.2],
+        "max_depth": [3, 5],
+    },
+    "AdaBoost": {"n_estimators": [50, 100, 200], "learning_rate": [0.05, 0.1, 0.2]},
+    "MLP": {
+        "hidden_layer_sizes": [(50,), (100,), (100, 50)],
+        "activation": ["relu", "tanh"],
+        "solver": ["adam"],
+        "alpha": [0.0001, 0.001],
+        "learning_rate": ["adaptive"],
+    },
+    "XGBoost": {
+        "n_estimators": [100, 300],
+        "learning_rate": [0.05, 0.1, 0.2],
+        "max_depth": [3, 6, 9],
+        "subsample": [0.8, 1.0],
+    },
+    "LightGBM": {
+        "n_estimators": [100, 300],
+        "learning_rate": [0.05, 0.1, 0.2],
+        "num_leaves": [31, 63, 127],
+        "max_depth": [-1, 10],
+    },
+}
+
+_PREPROCESSOR_SPACE: dict[str, dict] = {
+    "PCA": {"n_components": list(range(5, 55, 5))},
+    "RobustScaler": {},
+    "StandardScaler": {},
+    "KMeansOutlier": {"n_clusters": [3, 5, 8]},
+    "IsolationForest": {
+        "n_estimators": [100, 200],
+        "contamination": [0.05, 0.1],
+        "max_features": [0.5, 1.0],
+    },
+    "LocalOutlierFactor": {"n_neighbors": [20, 35], "contamination": [0.05, 0.1]},
+    "QuantileTransform": {"output_distribution": ["uniform", "normal"]},
+}
+
+# ---------------------------------------------------------------------------
 # Helper – expose hyper-parameter grids for orchestrator / wrappers
 # ---------------------------------------------------------------------------
 
@@ -80,10 +158,12 @@ def get_space(kind: str):
         do not break while the detailed hyper-parameter grids from Tables 1 &
         2 are still under construction.
     """
-    if kind not in {"model", "preprocessor"}:
+    if kind == "model":
+        return _MODEL_SPACE.copy()
+    elif kind == "preprocessor":
+        return _PREPROCESSOR_SPACE.copy()
+    else:
         raise ValueError("kind must be 'model' or 'preprocessor'")
-    # TODO – Implement full hyper-parameter grids from Tables 1 & 2.
-    return {}
 
 __all__ = [
     "RANDOM_STATE",
