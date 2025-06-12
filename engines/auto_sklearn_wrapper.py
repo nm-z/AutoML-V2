@@ -1,92 +1,103 @@
-"""auto_sklearn_wrapper – Stub Implementation
-
-This placeholder satisfies the orchestrator while the full wrapper is under
-construction.  It *tries* to run AutoSklearn if the library is present; if
-not, it falls back to a simple baseline that at least returns a fitted model
-with a ``best_score_`` attribute so downstream code can proceed.
-"""
 from __future__ import annotations
 
-import random
+"""auto_sklearn_wrapper – Light wrapper around AutoSklearnRegressor
+
+This adapter conforms to the orchestrator's strict API contract:
+::
+    fit_engine(X, y, *, model_families, prep_steps, seed, timeout_sec)
+
+It restricts the allowed estimator pool to the immutable search-space defined
+in :pymod:`scripts.config` while delegating hyper-parameter optimisation to
+Auto-Sklearn itself.
+"""
+
 from typing import Any, Sequence
 
-import numpy as np
 import pandas as pd
 from rich.console import Console
 from rich.tree import Tree
 
 console = Console(highlight=False)
 
+# ---------------------------------------------------------------------------
+# Mapping – project generic names → Auto-Sklearn estimator identifiers
+# ---------------------------------------------------------------------------
+_AUTOSKLEARN_MAP = {
+    # Models
+    "Ridge": "ridge_regression",
+    "Lasso": "lasso_regression",
+    "ElasticNet": "elasticnet",
+    "SVR": "svr",
+    "DecisionTree": "decision_tree",
+    "RandomForest": "random_forest",
+    "ExtraTrees": "extra_trees",
+    "GradientBoosting": "gradient_boosting",
+    "AdaBoost": "adaboost",
+    "MLP": "mlp",
+    "XGBoost": "xgradient_boosting",
+    "LightGBM": "lightgbm",
+    # RPOP has no Auto-Sklearn equivalent – omit gracefully
+}
 
-# ---------------------------------------------------------------------------
-# Public API expected by orchestrator
-# ---------------------------------------------------------------------------
+
+def _build_include_list(families: Sequence[str]):
+    """Return a *distinct* list of Auto-Sklearn estimator identifiers."""
+
+    include = [
+        _AUTOSKLEARN_MAP[f]
+        for f in families
+        if f in _AUTOSKLEARN_MAP and _AUTOSKLEARN_MAP[f] is not None
+    ]
+    # Auto-Sklearn expects a list – duplicates hurt but we remove them anyway
+    return list(dict.fromkeys(include))
+
 
 def fit_engine(
     X: pd.DataFrame,
     y: pd.Series,
     *,
     model_families: Sequence[str],
-    prep_steps: Sequence[str],
+    prep_steps: Sequence[str],  # noqa: ARG001 – reserved for future use
     seed: int,
     timeout_sec: int,
-) -> Any:  # noqa: ANN401 – unknown model object type until real impl.
-    """Fit an AutoSklearnRegressor constrained to the approved search-space.
+) -> Any:  # noqa: ANN401 – polymorphic return type
+    """Fit AutoSklearnRegressor or fall back to LinearRegression."""
 
-    The current implementation is a *stub*; it will either:
-    1.  Use ``autosklearn.regression.AutoSklearnRegressor`` if available, or
-    2.  Fit a trivial baseline model that predicts the mean.
-    """
+    root = Tree("[Auto-Sklearn]")
 
-    root = Tree("[AutoSklearn]")
-    rng = random.Random(seed)
-
-    # Map generic names to auto-sklearn internal names. This is a placeholder
-    # and should be expanded with a more comprehensive mapping if needed.
-    # For now, only a few exact matches are supported for demonstration.
-    as_estimators = []
-    for family in model_families:
-        # Simple direct mapping for now, assuming auto-sklearn uses similar names
-        # In a real scenario, this would be a more robust dictionary lookup
-        if family == "LinearRegression":
-            as_estimators.append("linear_regression")
-        elif family == "RandomForest":
-            as_estimators.append("random_forest")
-        # Add more mappings as needed
-
-    as_preprocessors = []
-    for prep in prep_steps:
-        # Simple direct mapping for now
-        if prep == "PCA":
-            as_preprocessors.append("pca")
-        elif prep == "StandardScaler":
-            as_preprocessors.append("standard_scaler")
-        # Add more mappings
+    include_estimators = _build_include_list(model_families)
 
     try:
         from autosklearn.regression import AutoSklearnRegressor  # type: ignore
 
-        root.add("library detected – running real AutoSklearn")
-        model = AutoSklearnRegressor(
+        root.add("library detected – running real Auto-Sklearn")
+
+        automl = AutoSklearnRegressor(
             time_left_for_this_task=timeout_sec,
-            seed=seed,
-            n_jobs=1,
+            per_run_time_limit=min(900, max(30, timeout_sec // 10)),
+            include_estimators=include_estimators if include_estimators else None,
+            resampling_strategy="holdout",
+            resampling_strategy_arguments={"train_size": 0.75},
             metric="r2",
-            include_estimators=as_estimators if as_estimators else None,
-            include_preprocessors=as_preprocessors if as_preprocessors else None,
+            n_jobs=1,  # prevent nested parallelism
+            seed=seed,
         )
-        model.fit(X, y)
+
+        automl.fit(X, y)
+        model = automl
+
     except ModuleNotFoundError:
-        root.add("library missing – falling back to LinearRegression")
+        root.add("library missing – fallback LinearRegression")
+
         from sklearn.linear_model import LinearRegression  # type: ignore
 
-        model = LinearRegression(n_jobs=1)
-        model.fit(X, y)
-        # Attach best_score_ on training data (since no CV here)
-        preds = model.predict(X)
+        linreg = LinearRegression(n_jobs=1)
+        linreg.fit(X, y)
+        preds = linreg.predict(X)
         ss_res = ((y - preds) ** 2).sum()
         ss_tot = ((y - y.mean()) ** 2).sum()
-        model.best_score_ = 1 - ss_res / ss_tot  # type: ignore[attr-defined]
+        linreg.best_score_ = 1 - ss_res / ss_tot  # type: ignore[attr-defined]
+        model = linreg
 
     console.print(root)
     return model

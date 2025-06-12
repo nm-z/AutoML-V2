@@ -101,9 +101,22 @@ def _meta_search_legacy(
     # 1️⃣ Discover available engines
     # ---------------------------------------------------------------------
     discover_node = root.add("Discovering engine wrappers…")
-    engines = discover_available()
-    for name in engines:
+    all_engines = discover_available()
+    engines = {}
+    import sys
+    python_major_version = sys.version_info.major
+    python_minor_version = sys.version_info.minor
+
+    for name, wrapper in all_engines.items():
+        # Skip AutoGluon only on versions known to be incompatible (e.g., Python 3.13)
+        if name == "autogluon_wrapper" and python_major_version == 3 and python_minor_version == 13:
+            discover_node.add(
+                f"[yellow]⚠ Skipping {name} due to Python 3.13 compatibility issues"
+            )
+            continue
+
         discover_node.add(f"[green]✔ {name}")
+        engines[name] = wrapper
 
     if not engines:
         console.print(root)
@@ -425,7 +438,8 @@ def _cli() -> None:
             parser.error(f"config.json is invalid: {exc}")
 
         predictors_csv = Path(dataset_entry["path"])
-        target_col = dataset_entry.get("target_column", "target")
+        target_path = dataset_entry.get("target_path")
+        target_column = dataset_entry.get("target_column")
 
         if not predictors_csv.exists():
             parser.error(f"CSV path specified in config.json does not exist: {predictors_csv}")
@@ -433,12 +447,19 @@ def _cli() -> None:
         dataset_name = args.dataset_name or dataset_entry.get("name", f"dataset{args.dataset_id}")
         out_dir = Path("05_outputs") / dataset_name
 
-        df = pd.read_csv(predictors_csv)
-        if target_col not in df.columns:
-            parser.error(f"target_column '{target_col}' not found in CSV header")
-
-        y = df[target_col]
-        X = df.drop(columns=[target_col])
+        if target_path:
+            if not Path(target_path).exists():
+                parser.error(f"Target path specified in config.json does not exist: {target_path}")
+            X = pd.read_csv(predictors_csv)
+            y = pd.read_csv(target_path).iloc[:, 0]
+        elif target_column:
+            df = pd.read_csv(predictors_csv)
+            if target_column not in df.columns:
+                parser.error(f"target_column '{target_column}' not found in CSV header")
+            y = df[target_column]
+            X = df.drop(columns=[target_column])
+        else:
+            parser.error("Dataset entry must specify either 'target_path' or 'target_column'.")
 
         # Optionally persist shape back to config for quick reference
         dataset_entry["shape"] = {"n_samples": int(X.shape[0]), "n_features": int(X.shape[1])}

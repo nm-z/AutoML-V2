@@ -4,13 +4,17 @@
       "id": 1,
       "name": "Hold-1",
       "path": "DataSets/1/Predictors_Hold-1_2025-04-14_18-28.csv",
-      "target_column": "y"
+      "target_path": "DataSets/1/9_10_24_Hold_01_targets.csv"
     },
     {
       "id": 2,
       "name": "Hold-2",
       "path": "DataSets/2/hold2_predictor.csv",
-      "target_column": "target"
+      "target_path": "DataSets/2/hold2_target.csv",
+      "shape": {
+        "n_samples": 107,
+        "n_features": 4806
+      }
     },
     {
       "id": 3,
@@ -19,4 +23,4 @@
       "target_path": "DataSets/3/targets_Hold 1 Full_20250527_151252.csv"
     }
   ]
-} 
+}

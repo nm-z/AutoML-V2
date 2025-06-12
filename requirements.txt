@@ -2,6 +2,8 @@ numpy
 rich
 pandas
 joblib
-auto-sklearn
 tpot
-autogluon.tabular 
+autogluon.tabular
+auto-sklearn==0.18
+xgboost
+lightgbm 

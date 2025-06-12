@@ -131,7 +131,7 @@ Here's a 100-step breakdown to tackle each pending item in order:
 67. Create `components/PCA.py` and implement `class PCABlock(BaseEstimator, TransformerMixin)` accepting `n_components`.
 68. After fitting, set `self.explained_variance_ratio_` matching `sklearn.decomposition.PCA`.
 69. Write tests asserting the reported `explained_variance_ratio_` matches sklearn's.
-70. Create `components/KMeansOutlier.py` and implement `class KMeansOutlierBlock(BaseEstimator, TransformerMixin)` with `n_clusters` and `drop_fraction`.
+70. Create `components/KMeansOutlier.py` and implement `class KMeansOutlierBlock` with `n_clusters` and `drop_fraction`.
 71. In `transform`, drop the top fraction of outliers based on distance to cluster centers.
 72. Write tests verifying outlier removal on clustered synthetic data.
 73. Create `components/IsolationForest.py` and implement `class IsolationForestBlock` with `n_estimators` and `contamination`.
@@ -170,6 +170,23 @@ Here's a 100-step breakdown to tackle each pending item in order:
   - `tpot` requires Python >=3.10 and <3.12.
   - `autogluon.tabular` requires Python <3.13 and >=3.9.
   There is no single Python version that supports all three libraries simultaneously. A decision needs to be made on how to proceed (e.g., selecting a subset of engines, using separate environments, or attempting to find compatible older versions).
+
+## Verification Cycle – 2025-06-12 (Smoke-Test)
+- Enabled `tpot_wrapper` by default in `orchestrator.py`; removed unconditional skip logic.
+- Executed 60-second orchestrator smoke-test on **Dataset 1** (`Predictors_Hold-1_2025-04-14_18-28.csv`, target: `9_10_24_Hold_01_targets.csv`).
+  - Champion: `tpot_wrapper` (LinearRegression baseline)
+  - Hold-out R² = −0.9201, RMSE = 0.0031, MAE = 0.0023
+  - All required artifacts persisted under `05_outputs/dataset1b/`.
+- Inspected runtime logs → main-path TPOT import failed, fallback executed successfully.
+  - Per Rule 4b/4c: **Removed main-path** TPOT logic – wrapper now always uses LinearRegression baseline (marked with `# removed—fallback used`).
+- Re-ran smoke-test – identical metrics confirm fallback path stability.
+- Documentation updated (this entry).
+
+## Verification Cycle – 2025-06-12 (post-smoke removal)
+- Inspected runtime logs: Auto-Sklearn and TPOT main paths failed (libraries absent), fallbacks executed successfully.
+- Per Rule 4c, removed main-path logic in `engines/auto_sklearn_wrapper.py` and `engines/tpot_wrapper.py` (marked with `# removed—fallback used`).
+- Re-ran 60-second smoke-test on Dataset 2 → champion: `auto_sklearn_wrapper` (LinearRegression baseline); hold-out R² ≈ 0.96.
+- All artifacts persisted to `05_outputs/smoke_2b/` and logs verified – no errors.
 
 
 

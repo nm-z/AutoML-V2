@@ -38,6 +38,29 @@ TPOT_COMPONENT_MAP = {
 }
 
 
+def build_frozen_config(model_families: Sequence[str], prep_steps: Sequence[str]):
+    """Return a TPOT‐compatible search‐space restricted to *approved* components.
+
+    The orchestrator guarantees that *model_families* and *prep_steps* only
+    contain names approved in the immutable spec (Tables 1 & 2).  We map those
+    names to TPOT identifiers via *TPOT_COMPONENT_MAP* and construct an *empty*
+    hyper-parameter dict for each entry – TPOT will then use its default search
+    ranges for that primitive.  This keeps the search-space frozen to exactly
+    the allowed components without manual tuning.
+    """
+
+    frozen: dict[str, dict] = {}
+    for fam in model_families:
+        tpot_name = TPOT_COMPONENT_MAP.get(fam)
+        if tpot_name:
+            frozen[tpot_name] = {}
+    for prep in prep_steps:
+        tpot_name = TPOT_COMPONENT_MAP.get(prep)
+        if tpot_name:
+            frozen[tpot_name] = {}
+    return frozen
+
+
 def fit_engine(
     X: pd.DataFrame,
     y: pd.Series,
@@ -51,36 +74,36 @@ def fit_engine(
 
     root = Tree("[TPOT]")
 
-    custom_tpot_config = {}
-    for family in model_families:
-        tpot_name = TPOT_COMPONENT_MAP.get(family)
-        if tpot_name:
-            custom_tpot_config[tpot_name] = {}  # Use empty dict for default TPOT search space
-
-    for prep in prep_steps:
-        tpot_name = TPOT_COMPONENT_MAP.get(prep)
-        if tpot_name:
-            custom_tpot_config[tpot_name] = {}  # Use empty dict for default TPOT search space
+    custom_tpot_config = build_frozen_config(model_families, prep_steps)
 
     try:
         from tpot import TPOTRegressor  # type: ignore
 
-        root.add("library detected – running real TPOT")
-        model = TPOTRegressor(
-            generations=50,
-            population_size=50,
-            verbosity=2,
-            random_state=seed,
-            n_jobs=1,
-            max_time_mins=timeout_sec / 60,
+        root.add("library detected – running real TPOTRegressor")
+
+        tpot = TPOTRegressor(
+            generations=100,
+            population_size=100,
+            config_dict=custom_tpot_config if custom_tpot_config else "TPOT light",
+            early_stop=20,
             scoring="r2",
-            config_dict=custom_tpot_config, # Pass the custom config
+            n_jobs=1,  # Prevent nested parallelism – orchestrator handles outer level
+            random_state=seed,
+            max_time_mins=max(1, timeout_sec // 60),
+            verbosity=2,
         )
-        model.fit(X, y)
-        # TPOT attaches score_ after fit
-        model.best_score_ = model.score(X, y)  # type: ignore[attr-defined]
+
+        tpot.fit(X, y)
+
+        model = tpot.fitted_pipeline_
+        try:
+            model.best_score_ = float(tpot._optimized_pipeline_score)  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
     except ModuleNotFoundError:
         root.add("library missing – fallback LinearRegression")
+
         from sklearn.linear_model import LinearRegression  # type: ignore
 
         linreg = LinearRegression(n_jobs=1)
