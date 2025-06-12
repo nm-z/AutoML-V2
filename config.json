@@ -1,29 +1,8 @@
 {
-  "datasets": [
-    {
-      "id": 1,
-      "name": "Hold-1",
-      "description": "First holdout dataset for testing the AutoML pipeline.",
-      "path": "DataSets/1/Predictors_Hold-1_2025-04-14_18-28.csv",
-      "target_path": "DataSets/1/9_10_24_Hold_01_targets.csv"
-    },
-    {
-      "id": 2,
-      "name": "Hold-2",
-      "description": "Second holdout dataset for testing the AutoML pipeline, with known shape.",
-      "path": "DataSets/2/hold2_predictor.csv",
-      "target_path": "DataSets/2/hold2_target.csv",
-      "shape": {
-        "n_samples": 107,
-        "n_features": 4806
-      }
-    },
-    {
-      "id": 3,
-      "name": "Hold-3",
-      "description": "Third holdout dataset, full version.",
-      "path": "DataSets/3/predictors_Hold 1 Full_20250527_151252.csv",
-      "target_path": "DataSets/3/targets_Hold 1 Full_20250527_151252.csv"
-    }
-  ]
+  "data_path": "DataSets/3/predictors.csv",
+  "target_path": "DataSets/3/targets.csv",
+  "time_limit": 60,
+  "metric": "r2",
+  "ensemble": true,
+  "output_dir": "05_outputs"
 }
