@@ -71,6 +71,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Optional Logstash integration for centralized logging
+if os.getenv("LOGSTASH_HOST"):
+    try:
+        from logstash_async.handler import AsynchronousLogstashHandler
+        from logstash_async.formatter import LogstashFormatter
+
+        ls_host = os.environ.get("LOGSTASH_HOST")
+        ls_port = int(os.environ.get("LOGSTASH_PORT", "5959"))
+        ls_handler = AsynchronousLogstashHandler(ls_host, ls_port, database_path=None)
+        ls_handler.setFormatter(LogstashFormatter())
+        logging.getLogger().addHandler(ls_handler)
+        logger.info("Logging to Logstash at %s:%s", ls_host, ls_port)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not configure Logstash handler: %s", exc)
+
 # ---------------------------------------------------------------------------
 # Reproducibility – set global seeds immediately at import-time
 # ---------------------------------------------------------------------------
