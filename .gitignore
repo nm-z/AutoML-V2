@@ -168,15 +168,15 @@ cython_debug/
 
 # AutoML specific ignores
 # Trained models and artifacts
-05_outputs/
-artifacts_*/
-*.pkl
-*.joblib
-*.h5
-*.onnx
+# 05_outputs/ # Managed by Git LFS
+# artifacts_*/
+# *.pkl # Managed by Git LFS
+# *.joblib
+# *.h5
+# *.onnx
 
 # Large datasets (excluded due to GitHub size limits)
-DataSets/
+# DataSets/ # Managed by Git LFS
 
 # Logs
 logs/

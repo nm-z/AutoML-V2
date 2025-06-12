@@ -10,10 +10,37 @@ from rich.tree import Tree
 from sklearn.base import BaseEstimator
 
 from components.base import BaseEngine
-from scripts.config import _MODEL_SPACE, _PREPROCESSOR_SPACE, DEFAULT_METRIC
 
 console = Console(highlight=False)
 logger = logging.getLogger(__name__)
+
+# --- Configuration for AutoSklearnEngine ---
+_MODEL_SPACE = {
+    "Ridge": {}, # Default hyperparameters, will be overridden by Auto-Sklearn's search
+    "Lasso": {},
+    "ElasticNet": {},
+    "SVR": {},
+    "DecisionTree": {},
+    "RandomForest": {},
+    "ExtraTrees": {},
+    "GradientBoosting": {},
+    "AdaBoost": {},
+    "MLP": {},
+    "XGBoost": {},
+    "LightGBM": {},
+}
+
+_PREPROCESSOR_SPACE = {
+    "PCA": {},
+    "RobustScaler": {},
+    "StandardScaler": {},
+    "QuantileTransform": {},
+    "KMeansOutlier": {},
+    "IsolationForest": {},
+    "LocalOutlierFactor": {},
+}
+
+DEFAULT_METRIC = "r2"
 
 # ---------------------------------------------------------------------------
 # Mapping – project generic names → Auto-Sklearn estimator identifiers

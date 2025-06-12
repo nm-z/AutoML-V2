@@ -1,8 +1,0 @@
-{
-  "data_path": "DataSets/3/predictors.csv",
-  "target_path": "DataSets/3/targets.csv",
-  "time_limit": 60,
-  "metric": "r2",
-  "ensemble": true,
-  "output_dir": "05_outputs"
-}

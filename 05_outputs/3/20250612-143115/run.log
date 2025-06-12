@@ -1,0 +1,21 @@
+2025-06-12 14:31:23,301 - INFO - Data loaded successfully. X shape: (400, 38448), y shape: (400,)
+2025-06-12 14:31:23,340 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
+2025-06-12 14:31:24,044 - ERROR - [Orchestrator] Error from autogluon_wrapper child process:
+Traceback (most recent call last):
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 471, in _runner
+    fitted_model = wrapper_instance.fit(X_obj, y_obj)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/engines/autogluon_wrapper.py", line 79, in fit
+    model_families = kwargs.get("model_families", _MODEL_SPACE.keys())
+                                                  ^^^^^^^^^^^^
+NameError: name '_MODEL_SPACE' is not defined
+
+2025-06-12 14:31:24,168 - ERROR - All AutoML engines failed in concurrent run.
+2025-06-12 14:31:24,169 - ERROR - An error occurred during meta-search or evaluation: All AutoML engines failed in concurrent run.
+Traceback (most recent call last):
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 761, in _cli
+    champion_model, fitted_engines, per_engine_metrics = _meta_search_concurrent(
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 589, in _meta_search_concurrent
+    raise RuntimeError("All AutoML engines failed in concurrent run.")
+RuntimeError: All AutoML engines failed in concurrent run.

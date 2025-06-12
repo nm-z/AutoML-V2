@@ -39,6 +39,18 @@ def load_data(
     predictors_path = Path(predictors_path)
     target_path = Path(target_path)
 
+    if predictors_path.is_dir():
+        predictor_files = list(predictors_path.glob("[Pp]redictors*Full_*.csv"))
+        if len(predictor_files) != 1:
+            raise FileNotFoundError(f"Expected exactly one predictors file in {predictors_path}, found {len(predictor_files)}. Please specify the exact file path or ensure a unique predictor file.")
+        predictors_path = predictor_files[0]
+
+    if target_path.is_dir():
+        target_files = list(target_path.glob("targets_Hold 1 Full_*.csv"))
+        if len(target_files) != 1:
+            raise FileNotFoundError(f"Expected exactly one targets file in {target_path}, found {len(target_files)}. Please specify the exact file path or ensure a unique target file.")
+        target_path = target_files[0]
+
     if not predictors_path.exists():
         raise FileNotFoundError(f"Predictors file not found: {predictors_path}")
     if not target_path.exists():

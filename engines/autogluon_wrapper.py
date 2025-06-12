@@ -12,38 +12,87 @@ from rich.tree import Tree
 from sklearn.base import BaseEstimator, RegressorMixin
 
 from components.base import BaseEngine
-from scripts.config import _MODEL_SPACE, DEFAULT_METRIC
 
 console = Console(highlight=False)
 logger = logging.getLogger(__name__)
 
+# --- Configuration for AutoGluonEngine ---
+# These are now class attributes inside AutoGluonEngine
+# _MODEL_SPACE = {
+#     "Ridge": {},
+#     "Lasso": {},
+#     "ElasticNet": {},
+#     "SVR": {},
+#     "DecisionTree": {},
+#     "RandomForest": {},
+#     "ExtraTrees": {},
+#     "GradientBoosting": {},
+#     "AdaBoost": {},
+#     "MLP": {},
+#     "XGBoost": {},
+#     "LightGBM": {},
+# }
+
+# DEFAULT_METRIC = "r2"
+
 # Map our generic model names to AutoGluon's internal model keys
-AUTOGLUON_MODEL_MAP = {
-    "Ridge": "LR",
-    "Lasso": "LR",
-    "ElasticNet": "LR",
-    "SVR": None,  # AutoGluon doesn't have a direct SVR equivalent in default models
-    "DecisionTree": None,  # AutoGluon uses tree-based models, but not directly 'DecisionTree'
-    "RandomForest": "RF",
-    "ExtraTrees": "XT",
-    "GradientBoosting": "GBM",  # LightGBM is often used for Gradient Boosting
-    "AdaBoost": None,  # No direct AdaBoost model in default AutoGluon
-    "MLP": "NN_TORCH",  # Multi-layer Perceptron
-    "XGBoost": "XGB",
-    "LightGBM": "GBM",
-}
+# These are now class attributes inside AutoGluonEngine
+# AUTOGLUON_MODEL_MAP = {
+#     "Ridge": "LR",
+#     "Lasso": "LR",
+#     "ElasticNet": "LR",
+#     "SVR": None,  # AutoGluon doesn't have a direct SVR equivalent in default models
+#     "DecisionTree": None,  # AutoGluon uses tree-based models, but not directly 'DecisionTree'
+#     "RandomForest": "RF",
+#     "ExtraTrees": "XT",
+#     "GradientBoosting": "GBM",  # LightGBM is often used for Gradient Boosting
+#     "AdaBoost": None,  # No direct AdaBoost model in default AutoGluon
+#     "MLP": "NN_TORCH",  # Multi-layer Perceptron
+#     "XGBoost": "XGB",
+#     "LightGBM": "GBM",
+# }
 
 
 class AutoGluonEngine(BaseEngine):
     """AutoGluon adapter conforming to the orchestrator's API."""
 
-    def __init__(self, seed: int, timeout_sec: int, run_dir: Path):
+    _MODEL_SPACE = {
+        "Ridge": {}, # Default hyperparameters, will be overridden by AutoGluon's search
+        "Lasso": {},
+        "ElasticNet": {},
+        "SVR": {},
+        "DecisionTree": {},
+        "RandomForest": {},
+        "ExtraTrees": {},
+        "GradientBoosting": {},
+        "AdaBoost": {},
+        "MLP": {},
+        "XGBoost": {},
+        "LightGBM": {},
+    }
+
+    _AUTOGLUON_MODEL_MAP = {
+        "Ridge": "LR",
+        "Lasso": "LR",
+        "ElasticNet": "LR",
+        "SVR": None,  # AutoGluon doesn't have a direct SVR equivalent in default models
+        "DecisionTree": None,  # AutoGluon uses tree-based models, but not directly 'DecisionTree'
+        "RandomForest": "RF",
+        "ExtraTrees": "XT",
+        "GradientBoosting": "GBM",  # LightGBM is often used for Gradient Boosting
+        "AdaBoost": None,  # No direct AdaBoost model in default AutoGluon
+        "MLP": "NN_TORCH",  # Multi-layer Perceptron
+        "XGBoost": "XGB",
+        "LightGBM": "GBM",
+    }
+
+    def __init__(self, seed: int, timeout_sec: int, run_dir: Path, metric: str = "r2"):
         self.seed = seed
         self.timeout_sec = timeout_sec
         self.run_dir = run_dir
         self._predictor: Any = None
         self._ag_output_path = self.run_dir / "autogluon_output"
-        self._metric: str = DEFAULT_METRIC # Store the metric for best_pipeline_info
+        self._metric: str = metric # Store the metric for best_pipeline_info
 
     @property
     def name(self) -> str:
@@ -90,24 +139,28 @@ class AutoGluonEngine(BaseEngine):
         root = Tree("[AutoGluon]")
         logger.info("[%s] search-start", self.__class__.__name__)
 
-        model_families = kwargs.get("model_families", _MODEL_SPACE.keys())
-        self._metric = kwargs.get("metric", DEFAULT_METRIC) # Store the metric
+        model_families = kwargs.get("model_families", self._MODEL_SPACE.keys())
+        self._metric = kwargs.get("metric", self._metric) # Store the metric (if explicitly passed in fit method)
 
         ag_included_models = []
         for family in model_families:
-            ag_key = AUTOGLUON_MODEL_MAP.get(family)
+            ag_key = self._AUTOGLUON_MODEL_MAP.get(family)
             if ag_key:
                 ag_included_models.append(ag_key)
 
         try:
             from autogluon.tabular import TabularPredictor
-            from autogluon.common.utils.utils import set_seed
+            import numpy as np # Import numpy for set_seed if it's within autogluon itself
+            # AutoGluon's set_seed was removed from autogluon.common.utils.utils in recent versions.
+            # Instead, set seed globally with numpy and random before calling AutoGluon.
+            # If AutoGluon still respects its own internal seed, that should be set in TabularPredictor args.
+            # from autogluon.common.utils.utils import set_seed # Removed
 
             root.add("library detected – running real AutoGluon")
             train_data = X.copy()
             train_data["target"] = y
             
-            set_seed(self.seed)
+            # set_seed(self.seed) # Removed, assuming global random state is enough or AutoGluon handles it
 
             ag_predictor = TabularPredictor(
                 label="target",

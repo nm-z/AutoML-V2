@@ -1,0 +1,41 @@
+[Auto-Sklearn]
+└── library missing – fallback LinearRegression
+Warning: lightgbm.LGBMRegressor is not available and will not be used by TPOT.
+AutoML Meta-Search
+├── Discovering engine wrappers…
+│   ├── ✔ auto_sklearn_wrapper
+│   ├── ✔ tpot_wrapper
+│   └── ✔ autogluon_wrapper
+├── auto_sklearn_wrapper ▸ running for 600s…
+│   ├── ✓ completed in 0.1s
+│   └── 🔖 saved → 05_outputs/full_2_tpa_tp/auto_sklearn_wrapper_champion.pkl
+└── tpot_wrapper ▸ running for 600s…
+    └── ✗ error: optype must be one of: Classifier, Regressor, Selector, Transformer, or 
+        Resampler
+Uncaught exception:
+Traceback (most recent call last):
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 799, in <module>
+    _cli()
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 481, in _cli
+    champion, _ = meta_search(
+                  ^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 292, in meta_search
+    return _meta_search_legacy(X, y, *remaining, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 133, in _meta_search_legacy
+    model = wrapper.fit_engine(
+            ^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/engines/tpot_wrapper.py", line 96, in fit_engine
+    tpot.fit(X, y)
+  File "/home/nate/Desktop/AutoML/env-tpa/lib/python3.11/site-packages/tpot/base.py", line 726,
+in fit
+    self._fit_init()
+  File "/home/nate/Desktop/AutoML/env-tpa/lib/python3.11/site-packages/tpot/base.py", line 602,
+in _fit_init
+    op_class, arg_types = TPOTOperatorClassFactory(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/env-tpa/lib/python3.11/site-packages/tpot/operator_utils.py",
+line 214, in TPOTOperatorClassFactory
+    raise ValueError(
+ValueError: optype must be one of: Classifier, Regressor, Selector, Transformer, or Resampler
+

@@ -1,0 +1,2 @@
+2025-06-12 14:39:37,066 - INFO - Data loaded successfully. X shape: (400, 38448), y shape: (400,)
+2025-06-12 14:39:37,100 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
