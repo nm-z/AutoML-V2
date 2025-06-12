@@ -8,7 +8,12 @@
 ./setup.sh
 ```
 
-This automatically creates Python environments, installs all dependencies, and sets up the project structure.
+This automatically creates Python environments, installs all dependencies, and sets up the project structure. If you prefer to manage the environment yourself, install the required packages first:
+
+```bash
+pip install -r requirements.txt
+```
+This step ensures modules like `pandas` are available before running `orchestrator.py`.
 
 ## Git Repository Structure
 

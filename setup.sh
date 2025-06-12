@@ -114,30 +114,15 @@ create_environments() {
 # Install dependencies in env-tpa
 install_env_tpa_deps() {
     log_info "Installing dependencies in env-tpa..."
-    
+
     source env-tpa/bin/activate
-    
+
     # Upgrade pip first
     pip install --upgrade pip
-    
-    # Install base scientific computing stack
-    log_info "Installing base scientific packages..."
-    pip install numpy scipy scikit-learn pandas matplotlib seaborn
-    
-    # Install TPOT (no special handling needed since we support only Python 3.11)
-    log_info "Installing TPOT..."
-    pip install tpot
-    
-    # Install AutoGluon – fully supported on Python 3.11
-    log_info "Installing AutoGluon..."
-    pip install autogluon.tabular
-    
-    # Install additional utilities
-    pip install rich joblib
-    
-    # Install XGBoost and LightGBM
-    pip install xgboost lightgbm
-    
+
+    # Install all Python dependencies from requirements.txt
+    pip install -r requirements.txt
+
     deactivate
     log_success "env-tpa dependencies installed successfully"
 }
@@ -162,12 +147,13 @@ create_directories() {
 test_environments() {
     log_info "Testing environment installations..."
     
-    # Test env-as
-    log_info "Testing env-as environment..."
-    source env-as/bin/activate
-    
-    if [[ "$PYTHON_CMD" == "python3.13" ]]; then
-        python -c "
+    # Test env-as only if it exists
+    if [ -d "env-as" ]; then
+        log_info "Testing env-as environment..."
+        source env-as/bin/activate
+
+        if [[ "$PYTHON_CMD" == "python3.13" ]]; then
+            python -c "
 import sklearn
 import numpy as np
 import pandas as pd
@@ -176,8 +162,8 @@ print(f'  - Scikit-learn version: {sklearn.__version__}')
 print(f'  - NumPy version: {np.__version__}')
 print(f'  - Pandas version: {pd.__version__}')
 "
-    else
-        python -c "
+        else
+            python -c "
 import auto_sklearn.regression
 import sklearn
 import numpy as np
@@ -188,8 +174,11 @@ print(f'  - Scikit-learn version: {sklearn.__version__}')
 print(f'  - NumPy version: {np.__version__}')
 print(f'  - Pandas version: {pd.__version__}')
 "
+        fi
+        deactivate
+    else
+        log_warning "env-as environment not found. Skipping Auto-Sklearn test."
     fi
-    deactivate
     
     # Test env-tpa
     log_info "Testing env-tpa environment..."
