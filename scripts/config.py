@@ -77,6 +77,10 @@ _MODEL_SPACE: dict[str, dict] = {
         "num_leaves": [31, 63, 127],
         "max_depth": [-1, 10],
     },
+    "MyNewModel": {
+        "parameter1": ["a", "b", "c"],
+        "parameter2": [10, 20, 30],
+    },
 }
 
 _PREPROCESSOR_SPACE: dict[str, dict] = {
