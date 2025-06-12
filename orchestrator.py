@@ -567,6 +567,31 @@ def _cli() -> None:
         if not args.target:
             parser.error("The following arguments are required: --target (or specify --config)")
 
+    # Resolve data and target paths based on the input argument format
+    # If a directory is provided, try to find the specific files within it.
+    # Otherwise, assume the full path to the file is provided.
+    resolved_data_path = Path(args.data)
+    resolved_target_path = Path(args.target)
+
+    # Check if the provided paths are directories
+    if resolved_data_path.is_dir():
+        # Search for predictors file in the specified directory
+        predictor_files = list(resolved_data_path.glob('Predictors_*.csv'))
+        if len(predictor_files) != 1:
+            logger.error(f"Error: Expected exactly one predictors file in {resolved_data_path}, found {len(predictor_files)}. Please specify the exact file path or ensure a unique predictor file.")
+            sys.exit(2)
+        resolved_data_path = predictor_files[0]
+        logger.info(f"Resolved predictors path to: {resolved_data_path}")
+
+    if resolved_target_path.is_dir():
+        # Search for targets file in the specified directory
+        target_files = list(resolved_target_path.glob('*_targets.csv'))
+        if len(target_files) != 1:
+            logger.error(f"Error: Expected exactly one targets file in {resolved_target_path}, found {len(target_files)}. Please specify the exact file path or ensure a unique target file.")
+            sys.exit(2)
+        resolved_target_path = target_files[0]
+        logger.info(f"Resolved targets path to: {resolved_target_path}")
+
     # Ensure the base output directory exists
     base_output_dir = Path(args.output_dir)
     base_output_dir.mkdir(parents=True, exist_ok=True)
@@ -584,14 +609,14 @@ def _cli() -> None:
 
     # Load data using the new data_loader module
     try:
-        X, y = load_data(args.data, args.target)
+        X, y = load_data(resolved_data_path, resolved_target_path)
     except Exception as e:
         logger.error(f"Error loading data: {e}", exc_info=True)
         sys.exit(2) # Exit code for data loading error
 
     logger.info("Starting AutoML meta-search...")
-    logger.info("Predictors path: %s", args.data)
-    logger.info("Target path: %s", args.target)
+    logger.info("Predictors path: %s", resolved_data_path)
+    logger.info("Target path: %s", resolved_target_path)
     logger.info("Time limit per engine: %d seconds", args.time)
     logger.info("Output directory: %s", run_dir)
     logger.info("Evaluation metric: %s", args.metric)

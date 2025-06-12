@@ -9,7 +9,7 @@ from typing import Any, Sequence
 import pandas as pd
 from rich.console import Console
 from rich.tree import Tree
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, RegressorMixin
 
 from components.base import BaseEngine
 from scripts.config import _MODEL_SPACE, DEFAULT_METRIC
@@ -51,10 +51,12 @@ class AutoGluonEngine(BaseEngine):
 
     @property
     def best_pipeline_info(self) -> dict:
-        if self._predictor is None:
+        if self._predictor is None or not hasattr(self._predictor, '_ag_predictor'):
             return {"status": "not_fitted"}
+        
+        ag_predictor = self._predictor._ag_predictor
         try:
-            leaderboard = self._predictor.leaderboard(silent=True)
+            leaderboard = ag_predictor.leaderboard(silent=True)
             if not leaderboard.empty:
                 best_model_info = leaderboard.iloc[0].to_dict()
                 return {
@@ -99,27 +101,32 @@ class AutoGluonEngine(BaseEngine):
 
         try:
             from autogluon.tabular import TabularPredictor
+            from autogluon.common.utils.utils import set_seed
 
             root.add("library detected – running real AutoGluon")
             train_data = X.copy()
             train_data["target"] = y
+            
+            set_seed(self.seed)
 
-            self._predictor = TabularPredictor(
+            ag_predictor = TabularPredictor(
                 label="target",
                 problem_type="regression",
                 eval_metric=self._metric, # AutoGluon understands 'r2', 'neg_mean_squared_error', 'neg_mean_absolute_error'
                 path=str(self._ag_output_path),
-                seed=self.seed,
             )
-            self._predictor.fit(
+            ag_predictor.fit(
                 train_data=train_data,
                 presets="medium_quality_faster_train",  # Specific preset as required
                 time_limit=self.timeout_sec,
                 # Only include models explicitly requested by the orchestrator from our allowed list
                 included_model_types=list(set(ag_included_models)) if ag_included_models else None,
             )
-            best_score = self._predictor.leaderboard(silent=True)["score_val"].iloc[0]
+            best_score = ag_predictor.leaderboard(silent=True)["score_val"].iloc[0]
             logger.info("[%s] best-score: %s", self.__class__.__name__, best_score)
+            
+            self._predictor = AutoGluonSklearnWrapper(ag_predictor=ag_predictor, path=self._ag_output_path)
+            return self._predictor
 
         except ModuleNotFoundError as e:
             logger.warning("[%s] library missing – fallback LinearRegression: %s", self.__class__.__name__, e)
@@ -139,13 +146,55 @@ class AutoGluonEngine(BaseEngine):
         return self._predictor.predict(X)
 
     def export(self, path: Path):
-        if self._predictor is None:
-            raise RuntimeError("Model not fitted. Call fit() first.")
+        if self._predictor is None or not hasattr(self._predictor, '_ag_predictor'):
+            raise RuntimeError("Model not fitted or not an AutoGluon model. Call fit() first.")
 
+        ag_predictor = self._predictor._ag_predictor
         # AutoGluon saves its output to a directory. We need to zip it.
         zip_file_name = path / "autogluon"
         shutil.make_archive(str(zip_file_name), "zip", self._ag_output_path)
         logger.info("[%s] Zipped AutoGluon output to %s.zip", self.__class__.__name__, zip_file_name)
+
+
+class AutoGluonSklearnWrapper(BaseEstimator, RegressorMixin):
+    """A scikit-learn compatible wrapper for AutoGluon's TabularPredictor.
+
+    This allows AutoGluon models to be used with scikit-learn's cross_validate
+    and other utilities that expect the scikit-learn estimator API.
+    """
+    def __init__(self, ag_predictor: Any = None, path: Path = None):
+        # We store the actual AutoGluon TabularPredictor instance
+        self._ag_predictor = ag_predictor
+        self.path = path # Store path for potential loading if needed
+
+    def fit(self, X: pd.DataFrame, y: pd.Series, **kwargs):
+        # In cross_validate, fit is called on cloned estimators.
+        # If _ag_predictor is None, it means this is a cloned instance that needs to be loaded.
+        if self._ag_predictor is None and self.path is not None:
+            from autogluon.tabular import TabularPredictor
+            self._ag_predictor = TabularPredictor.load(str(self.path))
+        elif self._ag_predictor is None:
+            raise RuntimeError("AutoGluonPredictor not provided and path is not set for loading.")
+
+        # No need to call fit on _ag_predictor here, as it's already fitted from the original AutoGluonEngine.fit call
+        # This fit method is primarily for scikit-learn's cloning/validation purposes.
+        return self
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        if self._ag_predictor is None:
+            raise RuntimeError("AutoGluonPredictor is not initialized. Call fit() first.")
+        return self._ag_predictor.predict(X).values
+
+    def get_params(self, deep: bool = True) -> dict:
+        # Required by scikit-learn's BaseEstimator for cloning.
+        # Return parameters that would be needed to re-instantiate the wrapper.
+        return {"ag_predictor": self._ag_predictor, "path": self.path}
+
+    def set_params(self, **parameters):
+        # Required by scikit-learn's BaseEstimator for cloning.
+        for parameter, value in parameters.items():
+            setattr(self, parameter, value)
+        return self
 
 
 __all__ = ["AutoGluonEngine"] 
