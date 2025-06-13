@@ -151,6 +151,13 @@ python orchestrator.py --all --time 3600 \
 pyenv deactivate
 ```
 
+
+### Quick Smoke Test
+Run the helper script to verify your setup. It activates the default environment and runs all three engines for 60 seconds on the sample dataset:
+
+```bash
+./run_all.sh
+```
 All orchestrations run **AutoGluon**, **Auto-Sklearn**, and **TPOT** simultaneously. The `--all` flag ensures every run evaluates each engine before selecting a champion.
 
 ## Project Structure
