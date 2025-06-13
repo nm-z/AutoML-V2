@@ -96,15 +96,13 @@ deactivate
 # Activate the appropriate environment
 ./activate-tpa.sh
 
-# Run with all engines
+# Run with all engines (default behavior)
 python orchestrator.py --all --time 3600 \
   --data DataSets/3/predictors_Hold\ 1\ Full_20250527_151252.csv \
   --target DataSets/3/targets_Hold\ 1\ Full_20250527_151252.csv
 
-# Run with specific engines
-python orchestrator.py --tpot --time 1800 \
-  --data DataSets/1/Predictors_Hold-1_2025-04-14_18-28.csv
-
+# The orchestrator automatically runs Auto-Sklearn, TPOT and AutoGluon
+# together. The `--all` flag is optional but included here for clarity.
 deactivate
 ```
 
