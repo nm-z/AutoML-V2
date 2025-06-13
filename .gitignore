@@ -181,6 +181,7 @@ cython_debug/
 # Logs
 logs/
 training_logs/
+main.log
 
 # Temporary files
 *.tmp
@@ -209,6 +210,7 @@ tpot_*_pipeline.py
 # AutoGluon specific
 .autogluon/
 autogluon_models/
+05_outputs/**/autogluon_output/
 
 # MLflow
 mlruns/
