@@ -10,6 +10,9 @@
 
 - Update environment setup to ensure required Python packages (e.g., pandas) are installed before running the orchestrator.
 - Modify `setup.sh` to either create `env-as` or skip the activation test if it is not needed.
+- Enhance console logs using `rich.tree` so run progress is shown as a clear tree.
+- Add a `--tree` flag to `orchestrator.py` to optionally print artifact directories in tree form.
+- Create tests verifying tree-formatted output appears when the flag is used.
 
 ## Status
 
