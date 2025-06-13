@@ -8,7 +8,13 @@
 ./setup.sh
 ```
 
-This automatically creates Python environments, installs all dependencies, and sets up the project structure. If you prefer to manage the environment yourself, install the required packages first:
+This automatically creates the `env-tpa` Python environment, installs all dependencies (including `pandas`), and sets up the project structure. After running it, activate the environment before using the orchestrator:
+
+```bash
+./activate-tpa.sh
+```
+
+If you prefer to manage the environment yourself, install the required packages first:
 
 ```bash
 pip install -r requirements.txt
@@ -30,16 +36,16 @@ This repository has three main branches:
 
 This project uses separate Python virtual environments to handle AutoML library compatibility:
 
-- **`env-as`** - Auto-sklearn environment (Python 3.11+ recommended)
+- **`env-as`** - Auto-sklearn environment (optional, Python ≤3.10 recommended)
 - **`env-tpa`** - TPOT + AutoGluon environment (Python 3.11+ recommended)
 
 ### Quick Environment Usage
 
 ```bash
-# Activate Auto-Sklearn environment
+# (Optional) Activate Auto-Sklearn environment
 ./activate-as.sh
 
-# Activate TPOT + AutoGluon environment  
+# Activate TPOT + AutoGluon environment (default)
 ./activate-tpa.sh
 
 # Deactivate any environment
@@ -70,10 +76,10 @@ sudo apt install python3.11 python3.11-venv python3.11-dev
 python3.11 -m venv env-as
 python3.11 -m venv env-tpa
 
-# Install Auto-Sklearn environment
+# Install Auto-Sklearn environment (Python <=3.10 only)
 source env-as/bin/activate
 pip install --upgrade pip
-pip install auto-sklearn==0.15.0 numpy==1.24.3 scikit-learn==1.3.2 pandas matplotlib seaborn rich joblib
+pip install auto-sklearn==0.15.0 numpy==1.24.3 scikit-learn==1.4.2 pandas matplotlib seaborn rich joblib
 deactivate
 
 # Install TPOT + AutoGluon environment
@@ -147,8 +153,6 @@ export LOGSTASH_PORT=5959       # optional, defaults to 5959
 ```
 
 Now run the orchestrator as usual and view logs in Kibana at <http://localhost:5601>.
-=======
-- Build tools (`build-essential` on Ubuntu, `base-devel` on Arch)
 
 ## Running in Docker with Persistent Logs
 
@@ -168,7 +172,7 @@ docker compose run automl \
 
 All logs are stored under `05_outputs/logs/` on the host machine,
 ensuring they persist between runs.
-=======
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).

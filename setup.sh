@@ -98,10 +98,19 @@ setup_pyenv() {
 # Create virtual environments
 create_environments() {
     log_info "Creating Python virtual environments..."
-    
+
     # Use the Python command determined in check_system
-    
-    # Create env-tpa (TPOT + AutoGluon environment)  
+
+    # Create env-as (Auto-Sklearn environment)
+    if [ -d "env-as" ]; then
+        log_info "Removing existing env-as environment..."
+        rm -rf env-as
+    fi
+    log_info "Creating env-as (Auto-Sklearn environment)..."
+    $PYTHON_CMD -m venv env-as
+    log_success "Created env-as environment"
+
+    # Create env-tpa (TPOT + AutoGluon environment)
     if [ -d "env-tpa" ]; then
         log_info "Removing existing env-tpa environment..."
         rm -rf env-tpa
@@ -121,6 +130,27 @@ create_environments() {
 }
 
 # Install dependencies in env-tpa
+install_env_as_deps() {
+    log_info "Installing dependencies in env-as..."
+
+    source env-as/bin/activate
+
+    # Upgrade pip first
+    pip install --upgrade pip
+
+    # Auto-Sklearn is not available for Python 3.11+, so install only the base
+    # scientific stack when using this version
+    if [[ "$PYTHON_CMD" == *"3.11"* ]]; then
+        log_warning "Auto-Sklearn 0.15.0 is incompatible with Python 3.11; skipping installation"
+        pip install --only-binary=:all: numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
+    else
+        pip install --only-binary=:all: auto-sklearn==0.15.0 numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
+    fi
+
+    deactivate
+    log_success "env-as dependencies installed successfully"
+}
+
 install_env_tpa_deps() {
     log_info "Installing dependencies in env-tpa..."
 
@@ -129,8 +159,8 @@ install_env_tpa_deps() {
     # Upgrade pip first
     pip install --upgrade pip
 
-    # Install all Python dependencies from requirements.txt
-    pip install -r requirements.txt
+    # Install all Python dependencies from requirements.txt using wheels only
+    pip install --only-binary=:all: -r requirements.txt
 
     deactivate
     log_success "env-tpa dependencies installed successfully"
@@ -256,9 +286,12 @@ print(f'  - Pandas version: {pd.__version__}')
 # Post-setup check for all installed libraries
 post_setup_check() {
     log_info "Running post-setup checks to verify library installations..."
-    source env-tpa/bin/activate
 
-    REQUIRED_LIBS=(
+    ALL_LIBS_OK=true
+
+    # Check env-tpa libraries
+    source env-tpa/bin/activate
+    REQUIRED_TPA_LIBS=(
         "numpy"
         "pandas"
         "scikit-learn"
@@ -266,13 +299,10 @@ post_setup_check() {
         "rich"
         "tpot"
         "autogluon.tabular"
-        "auto_sklearn.regression"
         "xgboost"
         "lightgbm"
     )
-
-    ALL_LIBS_OK=true
-    for lib in "${REQUIRED_LIBS[@]}"; do
+    for lib in "${REQUIRED_TPA_LIBS[@]}"; do
         log_info "Checking $lib..."
         if ! python -c "import $lib" &> /dev/null; then
             log_error "✗ $lib is NOT installed or cannot be imported."
@@ -281,8 +311,32 @@ post_setup_check() {
             log_success "✓ $lib is installed."
         fi
     done
-
     deactivate
+
+    # Check env-as libraries if env-as exists
+    if [ -d "env-as" ]; then
+        source env-as/bin/activate
+        REQUIRED_AS_LIBS=(
+            "numpy"
+            "pandas"
+            "scikit-learn"
+            "joblib"
+            "rich"
+            "auto_sklearn.regression"
+        )
+        for lib in "${REQUIRED_AS_LIBS[@]}"; do
+            log_info "Checking $lib..."
+            if ! python -c "import $lib" &> /dev/null; then
+                log_error "✗ $lib is NOT installed or cannot be imported."
+                ALL_LIBS_OK=false
+            else
+                log_success "✓ $lib is installed."
+            fi
+        done
+        deactivate
+    else
+        log_warning "env-as environment not found. Skipping Auto-Sklearn library checks."
+    fi
 
     if ! $ALL_LIBS_OK; then
         log_error "Post-setup check FAILED. Some required libraries are missing. Please review the errors above."
@@ -295,29 +349,29 @@ post_setup_check() {
 # Create environment activation scripts
 create_activation_scripts() {
     log_info "Creating environment activation scripts..."
-    
+
     # Create activate-as.sh
-    # cat > activate-as.sh << 'EOF'
-    # #!/bin/bash
-    # # Activate Auto-Sklearn environment
-    # echo "Activating Auto-Sklearn environment (env-as)..."
-    # source env-as/bin/activate
-    # echo "✓ Auto-Sklearn environment activated"
-    # echo "Use 'deactivate' to exit the environment"
-    # EOF
-    # chmod +x activate-as.sh
-    
-    # Create activate-tpa.sh  
+    cat > activate-as.sh << 'EOF'
+#!/bin/bash
+# Activate Auto-Sklearn environment
+echo "Activating Auto-Sklearn environment (env-as)..."
+source env-as/bin/activate
+echo "✓ Auto-Sklearn environment activated"
+echo "Use 'deactivate' to exit the environment"
+EOF
+    chmod +x activate-as.sh
+
+    # Create activate-tpa.sh
     cat > activate-tpa.sh << 'EOF'
 #!/bin/bash
-# Activate TPOT + AutoGluon environment  
+# Activate TPOT + AutoGluon environment
 echo "Activating TPOT + AutoGluon environment (env-tpa)..."
 source env-tpa/bin/activate
 echo "✓ TPOT + AutoGluon environment activated"
 echo "Use 'deactivate' to exit the environment"
 EOF
     chmod +x activate-tpa.sh
-    
+
     log_success "Activation scripts created"
 }
 
@@ -333,6 +387,7 @@ main() {
     # setup_pyenv  # Commented out to use system Python directly
     create_directories
     create_environments
+    install_env_as_deps
     install_env_tpa_deps
     install_env_as_deps
     test_environments
@@ -346,10 +401,12 @@ main() {
     echo ""
     echo "Environment Usage:"
     echo "  • TPOT + AutoGluon: ./activate-tpa.sh"
+    echo "  • Auto-Sklearn:     ./activate-as.sh (optional)"
     echo ""
     echo "Quick Start:"
     echo "  1. Run: ./activate-tpa.sh"
     echo "  2. Test: python orchestrator.py --all --time 300 --data DataSets/3/predictors_Hold\\ 1\\ Full_20250527_151252.csv --target DataSets/3/targets_Hold\\ 1\\ Full_20250527_151252.csv"
+    echo "  3. Optionally try Auto-Sklearn with ./activate-as.sh"
     echo ""
     echo "For more information, see README.md"
     echo ""
