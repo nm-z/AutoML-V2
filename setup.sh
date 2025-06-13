@@ -5,6 +5,9 @@
 
 set -e  # Exit on any error
 
+# Optional Auto-Sklearn environment
+ENABLE_AS=false
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -47,6 +50,10 @@ check_system() {
         exit 1
     fi
     
+    PYTHON_MINOR=$($PYTHON_CMD -c 'import sys; print(sys.version_info.minor)')
+    if [ "$PYTHON_MINOR" -le 10 ]; then
+        ENABLE_AS=true
+    fi
     log_success "System check passed - using $PYTHON_CMD"
 }
 
@@ -99,18 +106,7 @@ setup_pyenv() {
 create_environments() {
     log_info "Creating Python virtual environments..."
 
-    # Use the Python command determined in check_system
-
-    # Create env-as (Auto-Sklearn environment)
-    if [ -d "env-as" ]; then
-        log_info "Removing existing env-as environment..."
-        rm -rf env-as
-    fi
-    log_info "Creating env-as (Auto-Sklearn environment)..."
-    $PYTHON_CMD -m venv env-as
-    log_success "Created env-as environment"
-
-    # Create env-tpa (TPOT + AutoGluon environment)
+    # env-tpa is always required
     if [ -d "env-tpa" ]; then
         log_info "Removing existing env-tpa environment..."
         rm -rf env-tpa
@@ -119,38 +115,21 @@ create_environments() {
     $PYTHON_CMD -m venv env-tpa
     log_success "Created env-tpa environment"
 
-    # Create env-as (Auto-Sklearn environment)
-    if [ -d "env-as" ]; then
-        log_info "Removing existing env-as environment..."
-        rm -rf env-as
+    # Create env-as only when requested
+    if [ "$ENABLE_AS" = true ]; then
+        if [ -d "env-as" ]; then
+            log_info "Removing existing env-as environment..."
+            rm -rf env-as
+        fi
+        log_info "Creating env-as (Auto-Sklearn environment)..."
+        $PYTHON_CMD -m venv env-as
+        log_success "Created env-as environment"
+    else
+        log_warning "Skipping env-as creation (requires Python <=3.10 or --with-as)"
     fi
-    log_info "Creating env-as (Auto-Sklearn environment)..."
-    $PYTHON_CMD -m venv env-as
-    log_success "Created env-as environment"
 }
 
 # Install dependencies in env-tpa
-install_env_as_deps() {
-    log_info "Installing dependencies in env-as..."
-
-    source env-as/bin/activate
-
-    # Upgrade pip first
-    pip install --upgrade pip
-
-    # Auto-Sklearn is not available for Python 3.11+, so install only the base
-    # scientific stack when using this version
-    if [[ "$PYTHON_CMD" == *"3.11"* ]]; then
-        log_warning "Auto-Sklearn 0.15.0 is incompatible with Python 3.11; skipping installation"
-        pip install --only-binary=:all: numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
-    else
-        pip install --only-binary=:all: auto-sklearn==0.15.0 numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
-    fi
-
-    deactivate
-    log_success "env-as dependencies installed successfully"
-}
-
 install_env_tpa_deps() {
     log_info "Installing dependencies in env-tpa..."
 
@@ -168,6 +147,11 @@ install_env_tpa_deps() {
 
 # Install dependencies in env-as
 install_env_as_deps() {
+    if [ ! -d "env-as" ]; then
+        log_warning "env-as environment not found. Skipping Auto-Sklearn dependencies"
+        return
+    fi
+
     log_info "Installing dependencies in env-as..."
 
     source env-as/bin/activate
@@ -175,10 +159,12 @@ install_env_as_deps() {
     # Upgrade pip first
     pip install --upgrade pip
 
-    # Install auto-sklearn and its dependencies
-    # Note: auto-sklearn is not in requirements.txt because it can conflict with autogluon/tpot
-    # We install a specific version known to be compatible with Python 3.11
-    pip install auto-sklearn==0.15.0
+    if [ "$PYTHON_MINOR" -ge 11 ]; then
+        log_warning "Auto-Sklearn 0.15.0 is incompatible with Python $PYTHON_MINOR; installing base stack only"
+        pip install --only-binary=:all: numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
+    else
+        pip install --only-binary=:all: auto-sklearn==0.15.0 numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
+    fi
 
     deactivate
     log_success "env-as dependencies installed successfully"
@@ -381,15 +367,22 @@ main() {
     echo "       AutoML Harness Setup Script       "
     echo "=========================================="
     echo ""
+
+    for arg in "$@"; do
+        if [ "$arg" = "--with-as" ]; then
+            ENABLE_AS=true
+        fi
+    done
     
     check_system
     install_system_deps
     # setup_pyenv  # Commented out to use system Python directly
     create_directories
     create_environments
-    install_env_as_deps
     install_env_tpa_deps
-    install_env_as_deps
+    if [ "$ENABLE_AS" = true ]; then
+        install_env_as_deps
+    fi
     test_environments
     post_setup_check
     create_activation_scripts

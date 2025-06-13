@@ -5,10 +5,10 @@
 **One-command setup** - Run this to get everything working instantly:
 
 ```bash
-./setup.sh
+./setup.sh [--with-as]
 ```
 
-This automatically creates the `env-tpa` Python environment, installs all dependencies (including `pandas`), and sets up the project structure. After running it, activate the environment before using the orchestrator:
+This automatically creates the `env-tpa` Python environment, installs all dependencies (including `pandas`), and sets up the project structure. Use `--with-as` if you also want the optional Auto-Sklearn environment. After running it, activate the environment before using the orchestrator:
 
 ```bash
 ./activate-tpa.sh
@@ -73,8 +73,9 @@ sudo apt install python3.11 python3.11-venv python3.11-dev
 
 ```bash
 # Create environments
-python3.11 -m venv env-as
 python3.11 -m venv env-tpa
+# Optional Auto-Sklearn environment
+python3.11 -m venv env-as
 
 # Install Auto-Sklearn environment (Python <=3.10 only)
 source env-as/bin/activate
