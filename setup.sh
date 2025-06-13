@@ -109,6 +109,15 @@ create_environments() {
     log_info "Creating env-tpa (TPOT + AutoGluon environment)..."
     $PYTHON_CMD -m venv env-tpa
     log_success "Created env-tpa environment"
+
+    # Create env-as (Auto-Sklearn environment)
+    if [ -d "env-as" ]; then
+        log_info "Removing existing env-as environment..."
+        rm -rf env-as
+    fi
+    log_info "Creating env-as (Auto-Sklearn environment)..."
+    $PYTHON_CMD -m venv env-as
+    log_success "Created env-as environment"
 }
 
 # Install dependencies in env-tpa
@@ -125,6 +134,24 @@ install_env_tpa_deps() {
 
     deactivate
     log_success "env-tpa dependencies installed successfully"
+}
+
+# Install dependencies in env-as
+install_env_as_deps() {
+    log_info "Installing dependencies in env-as..."
+
+    source env-as/bin/activate
+
+    # Upgrade pip first
+    pip install --upgrade pip
+
+    # Install auto-sklearn and its dependencies
+    # Note: auto-sklearn is not in requirements.txt because it can conflict with autogluon/tpot
+    # We install a specific version known to be compatible with Python 3.11
+    pip install auto-sklearn==0.15.0
+
+    deactivate
+    log_success "env-as dependencies installed successfully"
 }
 
 # Create necessary directories
@@ -307,6 +334,7 @@ main() {
     create_directories
     create_environments
     install_env_tpa_deps
+    install_env_as_deps
     test_environments
     post_setup_check
     create_activation_scripts
