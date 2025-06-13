@@ -15,23 +15,19 @@ from typing import Dict, List
 # get first dibs at the allocated wall-clock budget.
 # ---------------------------------------------------------------------------
 _ENGINE_ORDER: List[str] = [
-    # "auto_sklearn_wrapper", # Temporarily commented out due to persistent dependency issues with Python 3.11
-    # "tpot_wrapper", # Temporarily commented out due to persistent issues with TPOT
+    "auto_sklearn_wrapper",
+    "tpot_wrapper",
     "autogluon_wrapper",
 ]
 
 
-def _import_wrapper(module_basename: str) -> ModuleType | None:
-    """Best-effort import of a single wrapper module inside ``engines``.
+def _import_wrapper(module_basename: str) -> ModuleType:
+    """Import a single wrapper module from ``engines``.
 
-    We *only* catch ``ModuleNotFoundError`` because any other exception means
-    the module existed but raised at import-time, in which case the user must
-    fix the failure explicitly (Fail-Fast-On-Errors rule).
+    This routine now fails fast if the wrapper cannot be imported so that
+    missing dependencies are surfaced immediately.
     """
-    try:
-        return importlib.import_module(f"{__name__}.{module_basename}")
-    except ModuleNotFoundError:
-        return None
+    return importlib.import_module(f"{__name__}.{module_basename}")
 
 
 def discover_available() -> Dict[str, ModuleType]:
@@ -41,8 +37,7 @@ def discover_available() -> Dict[str, ModuleType]:
     available: Dict[str, ModuleType] = {}
     for mod in _ENGINE_ORDER:
         wrapper = _import_wrapper(mod)
-        if wrapper is not None:
-            available[mod] = wrapper
+        available[mod] = wrapper
     return available
 
 __all__ = ["discover_available"] 
