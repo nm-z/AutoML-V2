@@ -58,25 +58,21 @@ N_SPLITS_CROSS_VALIDATION = 5
 N_REPEATS_CROSS_VALIDATION = 3
 
 # ---------------------------------------------------------------------------
-# Available AutoML components
+# Component Discovery
 # ---------------------------------------------------------------------------
+# Build lists of available model families and preprocessing steps by inspecting
+# the modules under ``components/models`` and ``components/preprocessors``.
 _MODELS_DIR = Path(__file__).parent / "components" / "models"
+_PREPROCESSORS_DIR = Path(__file__).parent / "components" / "preprocessors"
+
+# Names correspond to the module file stems without the ``.py`` extension.
 MODEL_FAMILIES = sorted(
     p.stem for p in _MODELS_DIR.glob("*.py") if p.stem != "__init__"
 )
 
-_PREP_DIR = Path(__file__).parent / "components" / "preprocessors"
-_prep_names = []
-for p in _PREP_DIR.glob("*.py"):
-    if p.stem != "__init__":
-        _prep_names.append(p.stem)
-for sub in _PREP_DIR.iterdir():
-    if sub.is_dir():
-        for p in sub.glob("*.py"):
-            if p.stem != "__init__":
-                _prep_names.append(p.stem)
-PREP_STEPS = sorted(_prep_names)
-
+PREP_STEPS = sorted(
+    p.stem for p in _PREPROCESSORS_DIR.rglob("*.py") if p.stem != "__init__"
+)
 
 # Wallclock limit for each engine, in seconds. This is a default and can be overridden by CLI.
 WALLCLOCK_LIMIT_SEC = 3600  # 1 hour
@@ -656,24 +652,22 @@ def _score(
 
 
 def _validate_components_availability() -> None:
-    """Ensure configured models and preprocessors correspond to real modules."""
-
+    """Ensure that all component names correspond to actual module files."""
     missing: list[str] = []
 
-    models_dir = Path(__file__).parent / "components" / "models"
     for name in MODEL_FAMILIES:
-        if not (models_dir / f"{name}.py").is_file():
-            missing.append(f"models/{name}.py")
+        if not (_MODELS_DIR / f"{name}.py").is_file():
+            missing.append(f"model '{name}'")
 
-    prep_dir = Path(__file__).parent / "components" / "preprocessors"
-    search_paths = [prep_dir] + [p for p in prep_dir.iterdir() if p.is_dir()]
     for name in PREP_STEPS:
-        found = any((path / f"{name}.py").is_file() for path in search_paths)
-        if not found:
-            missing.append(f"preprocessors/**/{name}.py")
+        pattern = list(_PREPROCESSORS_DIR.rglob(f"{name}.py"))
+        if not pattern:
+            missing.append(f"preprocessor '{name}'")
 
     if missing:
-        raise FileNotFoundError("Missing component modules: " + ", ".join(missing))
+        raise FileNotFoundError(
+            "Missing components: " + ", ".join(sorted(missing))
+        )
 
 def _cli() -> None:
     """Parses command-line arguments and orchestrates the AutoML pipeline."""
