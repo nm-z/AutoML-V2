@@ -338,3 +338,27 @@ Traceback (most recent call last):
   File "/home/nate/Desktop/AutoML/scripts/data_loader.py", line 55, in load_data
     raise FileNotFoundError(f"Predictors file not found: {predictors_path}")
 FileNotFoundError: Predictors file not found: DataSets/1/predictors.csv
+2025-06-12 23:29:42,303 - INFO - Data loaded successfully. X shape: (400, 4806), y shape: (400,)
+2025-06-12 23:29:42,311 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
+2025-06-12 23:29:43,028 - INFO - [Orchestrator|autogluon_wrapper] Child process started.
+2025-06-12 23:29:43,029 - INFO - [AutoGluonEngine] search-start
+2025-06-12 23:30:43,557 - INFO - [AutoGluonEngine] best-score: 0.5274837389044262
+2025-06-12 23:30:43,558 - INFO - [Orchestrator|autogluon_wrapper] Model fitting complete for autogluon_wrapper.
+2025-06-12 23:30:43,558 - INFO - [Orchestrator|autogluon_wrapper] Starting 3x5 Repeated K-Fold Cross-Validation for autogluon_wrapper...
+2025-06-12 23:30:45,496 - INFO - [Orchestrator|autogluon_wrapper] Cross-Validation complete for autogluon_wrapper.
+2025-06-12 23:30:45,496 - INFO - [Orchestrator|autogluon_wrapper] Metrics: R²=0.8090 (±0.0413), RMSE=0.0008 (±0.0002), MAE=0.0005 (±0.0001)
+2025-06-12 23:30:46,000 - INFO - Champion model selected from concurrent run: autogluon_wrapper with mean R² of 0.8090
+2025-06-12 23:30:46,000 - INFO - Blending champion models...
+2025-06-12 23:30:46,804 - INFO - Evaluating champion model on the hold-out set...
+2025-06-12 23:30:46,873 - INFO - Champion Model Hold-out Metrics: R²=0.5767, RMSE=0.0014, MAE=0.0010
+2025-06-12 23:30:46,883 - INFO - Overall champion model saved to 05_outputs/predictors.csv/20250612-232941/overall_champion.pkl
+2025-06-12 23:30:46,885 - ERROR - An error occurred during meta-search or evaluation: 'function' object has no attribute 'handlers'
+Traceback (most recent call last):
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 831, in _cli
+    "total_duration_seconds": time.perf_counter() - console.log.handlers[0]._time_start, # Approximate total duration
+                                                    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'function' object has no attribute 'handlers'
+2025-06-12 23:31:14,031 - INFO - Data loaded successfully. X shape: (400, 4806), y shape: (400,)
+2025-06-12 23:31:14,038 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
+2025-06-12 23:31:14,762 - INFO - [Orchestrator|autogluon_wrapper] Child process started.
+2025-06-12 23:31:14,762 - INFO - [AutoGluonEngine] search-start

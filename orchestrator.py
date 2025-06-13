@@ -745,7 +745,8 @@ def _cli() -> None:
     file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
     logger.addHandler(file_handler)
 
-    console.log(f"[bold green]Starting AutoML Orchestrator Run[/bold green]")
+    console.log("[bold green]Starting AutoML Orchestrator Run[/bold green]")
+    start_time = time.perf_counter() # Record the start time of the run
     console.log(f"  Dataset: {args.data}")
     console.log(f"  Target: {args.target}")
     console.log(f"  Time Limit per Engine: {args.time} seconds")
@@ -828,7 +829,7 @@ def _cli() -> None:
                 "metric": args.metric,
                 "engines_invoked": selected_engines,
                 "ensemble_enabled": not args.no_ensemble and len(selected_engines) > 1,
-                "total_duration_seconds": time.perf_counter() - console.log.handlers[0]._time_start, # Approximate total duration
+                "total_duration_seconds": time.perf_counter() - start_time, # Approximate total duration
                 "data_path": str(Path(args.data).resolve()),
                 "target_path": str(Path(args.target).resolve()),
             },

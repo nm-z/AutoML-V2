@@ -1,0 +1,13 @@
+2025-06-12 23:29:42,303 - INFO - Data loaded successfully. X shape: (400, 4806), y shape: (400,)
+2025-06-12 23:29:42,311 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
+2025-06-12 23:30:46,000 - INFO - Champion model selected from concurrent run: autogluon_wrapper with mean R² of 0.8090
+2025-06-12 23:30:46,000 - INFO - Blending champion models...
+2025-06-12 23:30:46,804 - INFO - Evaluating champion model on the hold-out set...
+2025-06-12 23:30:46,873 - INFO - Champion Model Hold-out Metrics: R²=0.5767, RMSE=0.0014, MAE=0.0010
+2025-06-12 23:30:46,883 - INFO - Overall champion model saved to 05_outputs/predictors.csv/20250612-232941/overall_champion.pkl
+2025-06-12 23:30:46,885 - ERROR - An error occurred during meta-search or evaluation: 'function' object has no attribute 'handlers'
+Traceback (most recent call last):
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 831, in _cli
+    "total_duration_seconds": time.perf_counter() - console.log.handlers[0]._time_start, # Approximate total duration
+                                                    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'function' object has no attribute 'handlers'
