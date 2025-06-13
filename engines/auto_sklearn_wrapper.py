@@ -73,12 +73,12 @@ _AUTOSKLEARN_PREPROCESSOR_MAP = {
 class AutoSklearnEngine(BaseEngine):
     """Auto-Sklearn adapter conforming to the orchestrator's API."""
 
-    def __init__(self, seed: int, timeout_sec: int, run_dir: Path):
+    def __init__(self, seed: int, timeout_sec: int, run_dir: Path, metric: str = DEFAULT_METRIC):
         self.seed = seed
         self.timeout_sec = timeout_sec
         self.run_dir = run_dir
         self._automl: Any = None
-        self._metric: str = DEFAULT_METRIC # Store the metric for best_pipeline_info
+        self._metric: str = metric # Store the metric for best_pipeline_info
 
     @property
     def name(self) -> str:
