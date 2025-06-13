@@ -116,17 +116,6 @@ console = Console(highlight=False, record=True)
 # Helper functions for runtime manifest
 # ---------------------------------------------------------------------------
 
-def get_git_sha():
-    """Returns the current Git commit SHA, or 'N/A' if not a Git repository."""
-    try:
-        # Get the current commit SHA; cwd=Path(__file__).parent.parent ensures we are in AutoML root
-        sha = subprocess.check_output(
-            ['git', 'rev-parse', 'HEAD'], cwd=Path(__file__).parent.parent
-        ).strip().decode('utf-8')
-        return sha
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return "N/A"
-
 def _extract_pipeline_info(model: Any) -> list[dict]:
     """
     Extracts pipeline steps and hyperparameters from a fitted model object,
@@ -201,7 +190,6 @@ def _write_runtime_manifest(
     dataset, champion pipeline, and individual engine results.
     """
     timestamp_utc = datetime.utcnow().isoformat(timespec='seconds') + 'Z'
-    git_sha = get_git_sha()
 
     dataset_info = {
         "path": str(Path(initial_cli_args.data).resolve()),
@@ -233,7 +221,6 @@ def _write_runtime_manifest(
     manifest_data = {
         "run_meta": {
             "timestamp_utc": timestamp_utc,
-            "git_sha": git_sha,
             "budget_seconds": initial_cli_args.time,
             "metric": initial_cli_args.metric,
             "engines_invoked": list(per_engine_metrics.keys()),
@@ -824,7 +811,6 @@ def _cli() -> None:
         metrics_data = {
             "run_meta": {
                 "timestamp_utc": datetime.utcnow().isoformat(timespec='seconds') + 'Z',
-                "git_sha": get_git_sha(),
                 "budget_seconds": args.time,
                 "metric": args.metric,
                 "engines_invoked": selected_engines,

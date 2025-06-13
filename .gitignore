@@ -218,4 +218,8 @@ mlartifacts/
 
 # Experiment tracking
 wandb/
-.neptune/ 
+.neptune/
+
+# Logs and outputs
+main.log
+05_outputs/ 
