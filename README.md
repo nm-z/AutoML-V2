@@ -8,10 +8,12 @@
 ./setup.sh [--with-as]
 ```
 
-This automatically creates the `env-tpa` Python environment, installs all dependencies (including `pandas`), and sets up the project structure. Use `--with-as` if you also want the optional Auto-Sklearn environment. After running it, activate the environment before using the orchestrator:
+This automatically creates the `automl-py311` and optional `automl-py310`
+environments using **pyenv**. After running it, activate the environment before
+using the orchestrator:
 
 ```bash
-./activate-tpa.sh
+pyenv activate automl-py311
 ```
 
 If you prefer to manage the environment yourself, install the required packages first:
@@ -34,23 +36,61 @@ This repository has three main branches:
 
 ## Python Environment Management
 
-This project uses separate Python virtual environments to handle AutoML library compatibility:
+This project now uses **pyenv** to maintain two dedicated environments:
 
-- **`env-as`** - Auto-sklearn environment (optional, Python ≤3.10 recommended)
-- **`env-tpa`** - TPOT + AutoGluon environment (Python 3.11+ recommended)
+- **`automl-py310`** – Auto-Sklearn (Python 3.10)
+- **`automl-py311`** – TPOT + AutoGluon (Python 3.11)
 
 ### Quick Environment Usage
 
 ```bash
-# (Optional) Activate Auto-Sklearn environment
-./activate-as.sh
+# Activate an environment
+pyenv activate automl-py310   # or automl-py311
 
-# Activate TPOT + AutoGluon environment (default)
-./activate-tpa.sh
-
-# Deactivate any environment
-deactivate
+# Deactivate when done
+pyenv deactivate
 ```
+
+## Development Environment Tips
+
+1. **Environment Activation and Deactivation**
+
+   ```bash
+   pyenv activate automl-py310  # or automl-py311
+   pyenv deactivate
+   ```
+
+   Use `pyenv local` in the project root so the environment activates automatically when entering the directory.
+
+2. **Dependency Management**
+
+   Maintain separate `requirements-py310.txt` and `requirements-py311.txt` files.
+   After installing or updating packages in an environment run:
+
+   ```bash
+   pyenv activate automl-py310
+   pip freeze > requirements-py310.txt
+   pyenv deactivate
+   ```
+
+3. **Running Scripts with Specific Versions**
+
+   You can call scripts without activating an environment by using `pyenv exec`:
+
+   ```bash
+   pyenv exec python3.11 orchestrator.py --all
+   ```
+
+4. **Troubleshooting**
+
+   - Ensure the correct environment is active if you see `ModuleNotFoundError`.
+   - Re-run `./setup.sh` if dependencies are missing.
+   - When using `gh` commands, set `env GH_PAGER=cat` to avoid pager errors.
+
+5. **Maintaining `setup.sh`**
+
+   Keep the setup script in sync with new dependencies so others can reproduce the same environments.
+
 
 ### Python 3.13 Compatibility Notes
 
@@ -72,29 +112,29 @@ sudo apt install python3.11 python3.11-venv python3.11-dev
 ### Manual Installation (if setup.sh fails)
 
 ```bash
-# Create environments
-python3.11 -m venv env-tpa
+# Create environments with pyenv
+pyenv virtualenv 3.11 automl-py311
 # Optional Auto-Sklearn environment
-python3.11 -m venv env-as
+pyenv virtualenv 3.10 automl-py310
 
 # Install Auto-Sklearn environment (Python <=3.10 only)
-source env-as/bin/activate
+pyenv activate automl-py310
 pip install --upgrade pip
 pip install auto-sklearn==0.15.0 numpy==1.24.3 scikit-learn\>=1.4.2,<1.6 pandas matplotlib seaborn rich joblib
-deactivate
+pyenv deactivate
 
 # Install TPOT + AutoGluon environment
-source env-tpa/bin/activate
+pyenv activate automl-py311
 pip install --upgrade pip
 pip install setuptools tpot autogluon.tabular numpy scikit-learn\>=1.4.2,<1.6 pandas matplotlib seaborn rich joblib xgboost lightgbm
-deactivate
+pyenv deactivate
 ```
 
 ## Running the Orchestrator
 
 ```bash
 # Activate the appropriate environment
-./activate-tpa.sh
+pyenv activate automl-py311
 
 # Run the orchestrator (AutoGluon, Auto-Sklearn, and TPOT all run)
 python orchestrator.py --all --time 3600 \
@@ -108,7 +148,7 @@ python orchestrator.py --all --time 3600 \
 
 # The orchestrator automatically runs Auto-Sklearn, TPOT and AutoGluon
 # together. The `--all` flag is optional but included here for clarity.
-deactivate
+pyenv deactivate
 ```
 
 All orchestrations run **AutoGluon**, **Auto-Sklearn**, and **TPOT** simultaneously. The `--all` flag ensures every run evaluates each engine before selecting a champion.
@@ -185,11 +225,11 @@ ensuring they persist between runs.
   activate the default environment:
 
   ```bash
-  ./activate-tpa.sh
+  pyenv activate automl-py311
   ```
 
-  Optionally switch to the Auto-Sklearn environment with `./activate-as.sh`.
-  Deactivate the current environment at any time using `deactivate`.
+  Optionally switch to the Auto-Sklearn environment with `pyenv activate automl-py310`.
+  Deactivate the current environment at any time using `pyenv deactivate`.
 
 - **Setup problems** – If `./setup.sh` fails, follow the instructions in the
   *Manual Installation* section to create `env-as` and `env-tpa` manually and
