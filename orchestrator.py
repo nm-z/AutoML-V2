@@ -280,6 +280,7 @@ def _meta_search_sequential(
     timeout_per_engine: int | None = None,
     metric: str = DEFAULT_METRIC,
     enable_ensemble: bool = False,
+    n_cpus: int,
 ) -> Tuple[Any, Dict[str, Any], Dict[str, Dict[str, float]]]:
     """Run each available AutoML engine sequentially and return the best model.
 
@@ -297,6 +298,9 @@ def _meta_search_sequential(
     enable_ensemble
         If True, and multiple engines are run, an ensemble of their champion
         pipelines will be created.
+    n_cpus
+        Number of CPU threads available inside the container. Passed to each
+        AutoML engine and used to limit BLAS threading.
 
     Returns
     -------
@@ -332,7 +336,13 @@ def _meta_search_sequential(
             engine_class_name = wrapper_module.__all__[0] # Assuming the class name is the first in __all__
             engine_class = getattr(wrapper_module, engine_class_name)
             # Instantiate the engine wrapper
-            engine = engine_class(seed=RANDOM_STATE, timeout_sec=timeout_sec, run_dir=run_dir, metric=metric)
+            engine = engine_class(
+                seed=RANDOM_STATE,
+                timeout_sec=timeout_sec,
+                run_dir=run_dir,
+                metric=metric,
+                n_cpus=n_cpus,
+            )
 
             # Fit the model
             logger.info(f"[Orchestrator|{name}] Fitting model for {name}...")
@@ -350,7 +360,13 @@ def _meta_search_sequential(
             }
             logger.info(f"[Orchestrator|{name}] Starting {N_REPEATS_CROSS_VALIDATION}x{N_SPLITS_CROSS_VALIDATION} Repeated K-Fold Cross-Validation for {name}...")
             cv_results = cross_validate(
-                fitted_model, X, y, cv=rkf, scoring=scoring, return_train_score=False, n_jobs=-1
+                fitted_model,
+                X,
+                y,
+                cv=rkf,
+                scoring=scoring,
+                return_train_score=False,
+                n_jobs=1,
             )
             logger.info(f"[Orchestrator|{name}] Cross-Validation complete for {name}.")
 
@@ -420,7 +436,13 @@ def meta_search(
     logger.warning("meta_search is deprecated. Use _meta_search_sequential or _meta_search_concurrent.")
     # For backward compatibility, call sequential by default
     champion_model, _, _ = _meta_search_sequential(
-        X=X, y=y, run_dir=artifacts_dir, timeout_per_engine=timeout_per_engine, metric=metric, enable_ensemble=enable_ensemble
+        X=X,
+        y=y,
+        run_dir=artifacts_dir,
+        timeout_per_engine=timeout_per_engine,
+        metric=metric,
+        enable_ensemble=enable_ensemble,
+        n_cpus=os.cpu_count() or 1,
     )
     return champion_model, {}
 
@@ -443,7 +465,7 @@ def _blend(champions: list[Any]):
         return None
     return _MeanEnsembleRegressor(models=champions)
 
-def _runner(name: str, X_obj, y_obj, t_sec, r_dir, met, q_child: _mp.Queue):
+def _runner(name: str, X_obj, y_obj, t_sec, r_dir, met, n_cpus, q_child: _mp.Queue):
     # Dynamically import the wrapper class within the child process
     from orchestrator import _get_automl_engine, RANDOM_STATE, N_SPLITS_CROSS_VALIDATION, N_REPEATS_CROSS_VALIDATION, _rmse, logging_level, DEFAULT_METRIC
     from sklearn.metrics import make_scorer, r2_score, mean_absolute_error
@@ -482,7 +504,13 @@ def _runner(name: str, X_obj, y_obj, t_sec, r_dir, met, q_child: _mp.Queue):
 
     try:
         # Instantiate the engine wrapper within the child process
-        wrapper_instance = wrapper_class(seed=RANDOM_STATE, timeout_sec=t_sec, run_dir=r_dir, metric=met)
+        wrapper_instance = wrapper_class(
+            seed=RANDOM_STATE,
+            timeout_sec=t_sec,
+            run_dir=r_dir,
+            metric=met,
+            n_cpus=n_cpus,
+        )
         fitted_model = wrapper_instance.fit(X_obj, y_obj)
         child_logger.info(f"[Orchestrator|{name}] Model fitting complete for {name}.")
 
@@ -530,6 +558,7 @@ def _meta_search_concurrent(
     timeout_per_engine: int,
     run_dir: Path | str = "05_outputs",
     enable_ensemble: bool,
+    n_cpus: int,
 ) -> Tuple[Any, Dict[str, Any], Dict[str, Dict[str, float]]]:
     """Run each available AutoML engine in parallel and return the best model.
 
@@ -571,12 +600,18 @@ def _meta_search_concurrent(
     q = ctx.Queue() # type: ignore
     workers = []
 
-    for name in discovered_engines.keys(): # Iterate over names only
+    for name in discovered_engines.keys():  # Iterate over names only
         worker = ctx.Process(
             target=_runner,
             args=(
-                name, X, y, timeout_per_engine, run_dir,
-                metric, q
+                name,
+                X,
+                y,
+                timeout_per_engine,
+                run_dir,
+                metric,
+                n_cpus,
+                q,
             ),
         )
         worker.start()
@@ -724,6 +759,12 @@ def _cli() -> None:
         action="store_true",
         help="Disable ensemble creation even if multiple engines are run",
     )
+    parser.add_argument(
+        "--cpus",
+        type=int,
+        default=os.cpu_count() or 1,
+        help="Number of CPU threads to use inside the container",
+    )
 
     args = parser.parse_args()
 
@@ -755,6 +796,18 @@ def _cli() -> None:
     dataset_name = Path(args.data).name  # Get dataset name from data path
     run_dir = Path("05_outputs") / dataset_name / timestamp_str
     run_dir.mkdir(parents=True, exist_ok=True)
+
+    # Limit CPU threading for BLAS libraries and engines
+    cpus_str = str(args.cpus)
+    for var in [
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+        "OMP_THREAD_LIMIT",
+    ]:
+        os.environ[var] = cpus_str
 
     # Configure logging to also write to a file within the run_dir
     file_handler = logging.FileHandler(run_dir / "run.log", mode="a")
@@ -797,6 +850,7 @@ def _cli() -> None:
                 timeout_per_engine=args.time,
                 metric=args.metric,
                 enable_ensemble=not args.no_ensemble,
+                n_cpus=args.cpus,
             )
             # Blend champions if ensembling is enabled
             if fitted_engines and not args.no_ensemble:
@@ -817,7 +871,8 @@ def _cli() -> None:
                 run_dir=run_dir,
                 timeout_per_engine=args.time,
                 metric=args.metric,
-                enable_ensemble=False, # Ensemble is handled outside sequential for single engine runs
+                enable_ensemble=False,  # Ensemble is handled outside sequential for single engine runs
+                n_cpus=args.cpus,
             )
 
         # Evaluate champion model on the hold-out set

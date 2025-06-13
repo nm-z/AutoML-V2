@@ -95,12 +95,13 @@ def _build_frozen_config(model_families: Sequence[str], prep_steps: Sequence[str
 class TPOTEngine(BaseEngine):
     """TPOT adapter conforming to the orchestrator's API."""
 
-    def __init__(self, seed: int, timeout_sec: int, run_dir: Path, metric: str = DEFAULT_METRIC):
+    def __init__(self, seed: int, timeout_sec: int, run_dir: Path, metric: str = DEFAULT_METRIC, n_cpus: int = 1):
         self.seed = seed
         self.timeout_sec = timeout_sec
         self.run_dir = run_dir
+        self.n_cpus = n_cpus
         self._tpot: Any = None
-        self._metric: str = metric # Store the metric for best_pipeline_info
+        self._metric: str = metric  # Store the metric for best_pipeline_info
 
     @property
     def name(self) -> str:
@@ -159,7 +160,7 @@ class TPOTEngine(BaseEngine):
                 config_dict=custom_tpot_config if custom_tpot_config else "TPOT light",
                 early_stop=20,  # Early stopping after 20 generations without improvement
                 scoring=tpot_metric,
-                n_jobs=1,  # Prevent nested parallelism – orchestrator handles outer level
+                n_jobs=self.n_cpus,  # Prevent nested parallelism – orchestrator handles outer level
                 random_state=self.seed,
                 max_time_mins=max(1, self.timeout_sec // 60),
                 verbosity=2,
@@ -174,7 +175,7 @@ class TPOTEngine(BaseEngine):
             logger.warning("[%s] library missing – fallback LinearRegression: %s", self.__class__.__name__, e)
             from sklearn.linear_model import LinearRegression
 
-            linreg = LinearRegression(n_jobs=1)
+            linreg = LinearRegression(n_jobs=self.n_cpus)
             linreg.fit(X, y)
             self._tpot = linreg
 

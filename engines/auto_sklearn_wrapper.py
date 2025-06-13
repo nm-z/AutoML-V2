@@ -73,12 +73,13 @@ _AUTOSKLEARN_PREPROCESSOR_MAP = {
 class AutoSklearnEngine(BaseEngine):
     """Auto-Sklearn adapter conforming to the orchestrator's API."""
 
-    def __init__(self, seed: int, timeout_sec: int, run_dir: Path, metric: str = DEFAULT_METRIC):
+    def __init__(self, seed: int, timeout_sec: int, run_dir: Path, metric: str = DEFAULT_METRIC, n_cpus: int = 1):
         self.seed = seed
         self.timeout_sec = timeout_sec
         self.run_dir = run_dir
+        self.n_cpus = n_cpus
         self._automl: Any = None
-        self._metric: str = metric # Store the metric for best_pipeline_info
+        self._metric: str = metric  # Store the metric for best_pipeline_info
 
     @property
     def name(self) -> str:
@@ -152,7 +153,7 @@ class AutoSklearnEngine(BaseEngine):
                 resampling_strategy="holdout",
                 resampling_strategy_arguments={"train_size": 0.75},
                 metric=translated_metric,
-                n_jobs=1,  # prevent nested parallelism
+                n_jobs=self.n_cpus,  # prevent nested parallelism
                 seed=self.seed,
                 tmp_folder=self.run_dir / "autosklearn_tmp",
                 output_folder=self.run_dir / "autosklearn_out",
@@ -167,7 +168,7 @@ class AutoSklearnEngine(BaseEngine):
             logger.warning("[%s] library missing – fallback LinearRegression: %s", self.__class__.__name__, e)
             from sklearn.linear_model import LinearRegression
 
-            linreg = LinearRegression(n_jobs=1)
+            linreg = LinearRegression(n_jobs=self.n_cpus)
             linreg.fit(X, y)
             self._automl = linreg
 

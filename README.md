@@ -99,7 +99,12 @@ deactivate
 # Run the orchestrator (AutoGluon, Auto-Sklearn, and TPOT all run)
 python orchestrator.py --all --time 3600 \
   --data DataSets/3/predictors_Hold\ 1\ Full_20250527_151252.csv \
-  --target DataSets/3/targets_Hold\ 1\ Full_20250527_151252.csv
+  --target DataSets/3/targets_Hold\ 1\ Full_20250527_151252.csv \
+  --cpus 4
+
+# Use `--cpus` to limit how many threads each AutoML engine and the underlying
+# BLAS libraries may use. This is especially important when running inside a
+# Docker container with restricted CPU quotas.
 
 # The orchestrator automatically runs Auto-Sklearn, TPOT and AutoGluon
 # together. The `--all` flag is optional but included here for clarity.

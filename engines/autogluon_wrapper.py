@@ -88,13 +88,14 @@ class AutoGluonEngine(BaseEngine):
         "LightGBM": "GBM",
     }
 
-    def __init__(self, seed: int, timeout_sec: int, run_dir: Path, metric: str = "r2"):
+    def __init__(self, seed: int, timeout_sec: int, run_dir: Path, metric: str = "r2", n_cpus: int = 1):
         self.seed = seed
         self.timeout_sec = timeout_sec
         self.run_dir = run_dir
+        self.n_cpus = n_cpus
         self._predictor: Any = None
         self._ag_output_path = self.run_dir / "autogluon_output"
-        self._metric: str = metric # Store the metric for best_pipeline_info
+        self._metric: str = metric  # Store the metric for best_pipeline_info
 
     @property
     def name(self) -> str:
@@ -174,6 +175,7 @@ class AutoGluonEngine(BaseEngine):
                 train_data=train_data,
                 presets="medium_quality_faster_train",  # Specific preset as required
                 time_limit=self.timeout_sec,
+                num_cpus=self.n_cpus,
                 # Only include models explicitly requested by the orchestrator from our allowed list
                 included_model_types=list(set(ag_included_models)) if ag_included_models else None,
             )
@@ -187,7 +189,7 @@ class AutoGluonEngine(BaseEngine):
             logger.warning("[%s] library missing – fallback LinearRegression: %s", self.__class__.__name__, e)
             from sklearn.linear_model import LinearRegression
 
-            linreg = LinearRegression(n_jobs=1)
+            linreg = LinearRegression(n_jobs=self.n_cpus)
             linreg.fit(X, y)
             self._predictor = linreg
 
