@@ -1,9 +1,0 @@
-2025-06-13 00:03:45,256 - INFO - Data loaded successfully. X shape: (400, 4806), y shape: (400,)
-2025-06-13 00:03:45,263 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
-2025-06-13 00:03:50,208 - INFO - Champion model selected from concurrent run: autogluon_wrapper with mean R² of -1.0502
-2025-06-13 00:03:50,209 - INFO - Blending champion models...
-2025-06-13 00:03:50,254 - INFO - Evaluating champion model on the hold-out set...
-2025-06-13 00:03:50,287 - INFO - Champion Model Hold-out Metrics: R²=-0.9201, RMSE=0.0031, MAE=0.0023
-2025-06-13 00:03:50,288 - INFO - Overall champion model saved to 05_outputs/D1-Predictors.csv/20250613-000344/overall_champion.pkl
-2025-06-13 00:03:50,292 - INFO - Metrics saved to 05_outputs/D1-Predictors.csv/20250613-000344/metrics.json
-2025-06-13 00:03:50,293 - INFO - Champion model for autogluon_wrapper saved to 05_outputs/D1-Predictors.csv/20250613-000344/autogluon_wrapper_champion.pkl

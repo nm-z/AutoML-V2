@@ -1,8 +1,0 @@
-2025-06-12 14:25:43,193 - ERROR - Failed to load data: Expected exactly one targets file in DataSets/3, found 0. Please specify the exact file path or ensure a unique target file.
-Traceback (most recent call last):
-  File "/home/nate/Desktop/AutoML/orchestrator.py", line 738, in _cli
-    X, y = load_data(args.data, args.target)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/nate/Desktop/AutoML/scripts/data_loader.py", line 55, in load_data
-    raise FileNotFoundError(f"Expected exactly one targets file in {target_path}, found {len(target_files)}. Please specify the exact file path or ensure a unique target file.")
-FileNotFoundError: Expected exactly one targets file in DataSets/3, found 0. Please specify the exact file path or ensure a unique target file.
