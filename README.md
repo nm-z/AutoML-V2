@@ -1,4 +1,4 @@
-# AutoML Harness
+# AutoML
 
 ## Quick Setup
 
