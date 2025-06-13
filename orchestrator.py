@@ -57,9 +57,26 @@ RANDOM_STATE = 42
 N_SPLITS_CROSS_VALIDATION = 5
 N_REPEATS_CROSS_VALIDATION = 3
 
-# TODO: Define these more rigorously based on approved model families and preprocessors
-# MODEL_FAMILIES = ["linear", "tree", "ensemble", "neural_network", "svm"]
-# PREP_STEPS = ["scalers", "dimensionality", "outliers"]
+# ---------------------------------------------------------------------------
+# Available AutoML components
+# ---------------------------------------------------------------------------
+_MODELS_DIR = Path(__file__).parent / "components" / "models"
+MODEL_FAMILIES = sorted(
+    p.stem for p in _MODELS_DIR.glob("*.py") if p.stem != "__init__"
+)
+
+_PREP_DIR = Path(__file__).parent / "components" / "preprocessors"
+_prep_names = []
+for p in _PREP_DIR.glob("*.py"):
+    if p.stem != "__init__":
+        _prep_names.append(p.stem)
+for sub in _PREP_DIR.iterdir():
+    if sub.is_dir():
+        for p in sub.glob("*.py"):
+            if p.stem != "__init__":
+                _prep_names.append(p.stem)
+PREP_STEPS = sorted(_prep_names)
+
 
 # Wallclock limit for each engine, in seconds. This is a default and can be overridden by CLI.
 WALLCLOCK_LIMIT_SEC = 3600  # 1 hour
@@ -639,12 +656,24 @@ def _score(
 
 
 def _validate_components_availability() -> None:
-    """Validates that all required components (preprocessors, models) are available.
-    (Placeholder - not fully implemented yet)
-    """
-    logger.info("Validating components availability... (Not fully implemented)")
-    # TODO: Implement actual validation logic to ensure all specified components
-    # in MODEL_FAMILIES and PREP_STEPS exist in the components/ directory.
+    """Ensure configured models and preprocessors correspond to real modules."""
+
+    missing: list[str] = []
+
+    models_dir = Path(__file__).parent / "components" / "models"
+    for name in MODEL_FAMILIES:
+        if not (models_dir / f"{name}.py").is_file():
+            missing.append(f"models/{name}.py")
+
+    prep_dir = Path(__file__).parent / "components" / "preprocessors"
+    search_paths = [prep_dir] + [p for p in prep_dir.iterdir() if p.is_dir()]
+    for name in PREP_STEPS:
+        found = any((path / f"{name}.py").is_file() for path in search_paths)
+        if not found:
+            missing.append(f"preprocessors/**/{name}.py")
+
+    if missing:
+        raise FileNotFoundError("Missing component modules: " + ", ".join(missing))
 
 def _cli() -> None:
     """Parses command-line arguments and orchestrates the AutoML pipeline."""
@@ -703,6 +732,12 @@ def _cli() -> None:
     )
 
     args = parser.parse_args()
+
+    try:
+        _validate_components_availability()
+    except FileNotFoundError as exc:
+        logger.error(str(exc))
+        sys.exit(1)
 
     if not (args.all or args.autogluon or args.autosklearn or args.tpot):
         parser.error("At least one engine must be selected: --all, --autogluon, --autosklearn, or --tpot")
