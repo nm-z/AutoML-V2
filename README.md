@@ -96,7 +96,7 @@ deactivate
 # Activate the appropriate environment
 ./activate-tpa.sh
 
-# Run with all engines (default behavior)
+# Run the orchestrator (AutoGluon, Auto-Sklearn, and TPOT all run)
 python orchestrator.py --all --time 3600 \
   --data DataSets/3/predictors_Hold\ 1\ Full_20250527_151252.csv \
   --target DataSets/3/targets_Hold\ 1\ Full_20250527_151252.csv
@@ -105,6 +105,8 @@ python orchestrator.py --all --time 3600 \
 # together. The `--all` flag is optional but included here for clarity.
 deactivate
 ```
+
+All orchestrations run **AutoGluon**, **Auto-Sklearn**, and **TPOT** simultaneously. The `--all` flag ensures every run evaluates each engine before selecting a champion.
 
 ## Project Structure
 
@@ -171,6 +173,25 @@ docker compose run automl \
 
 All logs are stored under `05_outputs/logs/` on the host machine,
 ensuring they persist between runs.
+
+## Troubleshooting
+
+- **Environment not activated** – If you encounter `ModuleNotFoundError` or similar issues,
+  activate the default environment:
+
+  ```bash
+  ./activate-tpa.sh
+  ```
+
+  Optionally switch to the Auto-Sklearn environment with `./activate-as.sh`.
+  Deactivate the current environment at any time using `deactivate`.
+
+- **Setup problems** – If `./setup.sh` fails, follow the instructions in the
+  *Manual Installation* section to create `env-as` and `env-tpa` manually and
+  install the required packages.
+
+- **Python version incompatibilities** – AutoGluon and Auto-Sklearn are skipped
+  on Python 3.13. Use Python 3.11 for full functionality.
 
 ## License
 
