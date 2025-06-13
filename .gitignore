@@ -170,7 +170,7 @@ cython_debug/
 # Trained models and artifacts
 # 05_outputs/ # Managed by Git LFS
 # artifacts_*/
-# *.pkl # Managed by Git LFS
+*.pkl
 # *.joblib
 # *.h5
 # *.onnx
