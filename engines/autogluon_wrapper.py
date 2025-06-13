@@ -58,6 +58,7 @@ class AutoGluonEngine(BaseEngine):
 
     _MODEL_SPACE = {
         "Ridge": {}, # Default hyperparameters, will be overridden by AutoGluon's search
+        "RPOP": {},
         "Lasso": {},
         "ElasticNet": {},
         "SVR": {},
@@ -73,6 +74,7 @@ class AutoGluonEngine(BaseEngine):
 
     _AUTOGLUON_MODEL_MAP = {
         "Ridge": "LR",
+        "RPOP": None,
         "Lasso": "LR",
         "ElasticNet": "LR",
         "SVR": None,  # AutoGluon doesn't have a direct SVR equivalent in default models

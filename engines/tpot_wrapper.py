@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # --- Configuration for TPOTEngine ---
 _MODEL_SPACE = {
     "Ridge": {}, # Default hyperparameters, will be overridden by TPOT's search
+    "RPOP": {},
     "Lasso": {},
     "ElasticNet": {},
     "SVR": {},
@@ -51,6 +52,7 @@ DEFAULT_METRIC = "r2"
 TPOT_COMPONENT_MAP = {
     # Models
     "Ridge": "sklearn.linear_model.Ridge", # Use Ridge as a basic regressor
+    "RPOP": None,
     # Preprocessors
     "StandardScaler": "sklearn.preprocessing.StandardScaler",
 }

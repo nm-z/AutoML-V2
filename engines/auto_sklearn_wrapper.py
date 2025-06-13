@@ -47,6 +47,7 @@ DEFAULT_METRIC = "r2"
 # ---------------------------------------------------------------------------
 _AUTOSKLEARN_MODEL_MAP = {
     "Ridge": "ridge_regression",
+    "RPOP": None,
     "Lasso": "lasso_regression",
     "ElasticNet": "elastic_net",  # Auto-Sklearn uses elastic_net
     "SVR": "svr",
