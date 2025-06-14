@@ -140,6 +140,9 @@ class TPOTEngine(BaseEngine):
         self._metric = kwargs.get("metric", DEFAULT_METRIC) # Store the metric
 
         custom_tpot_config = _build_frozen_config(model_families, prep_steps)
+        if not custom_tpot_config:
+            logger.warning("[TPOT] Empty config detected; falling back to TPOT light preset")
+            custom_tpot_config = "TPOT light"
         tpot_metric = TPOT_METRIC_MAP.get(self._metric, "r2")
 
         try:
@@ -150,7 +153,7 @@ class TPOTEngine(BaseEngine):
             self._tpot = TPOTRegressor(
                 generations=100,
                 population_size=100,
-                config_dict=custom_tpot_config if custom_tpot_config else "TPOT light",
+                config_dict=custom_tpot_config,
                 early_stop=20,  # Early stopping after 20 generations without improvement
                 scoring=tpot_metric,
                 n_jobs=self.n_cpus,  # Prevent nested parallelism – orchestrator handles outer level

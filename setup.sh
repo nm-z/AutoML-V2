@@ -157,6 +157,12 @@ setup_pyenv() {
         echo 'eval "$(pyenv virtualenv-init -)"'
     else
         log_success "pyenv is already installed"
+        if [ ! -d "$PYENV_ROOT/plugins/pyenv-virtualenv" ]; then
+            log_info "Installing pyenv-virtualenv plugin..."
+            git clone https://github.com/pyenv/pyenv-virtualenv.git "$PYENV_ROOT/plugins/pyenv-virtualenv"
+            eval "$(pyenv init -)"
+            eval "$(pyenv virtualenv-init -)"
+        fi
     fi
 
     # --- NEW: guarantee pyenv-virtualenv is available ---
