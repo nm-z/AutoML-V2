@@ -11,6 +11,7 @@
 - Reviewed and processed 9 pull requests: accepted 4 valuable PRs (run_all.sh, offline setup docs, tree flag, pyenv migration) and declined 5 problematic PRs (regressions, breaking changes, duplicates).
 - Added offline setup documentation for restricted network environments.
 - Completed systematic PR review and cleanup: processed all open PRs (13 total), closed duplicates and problematic PRs, maintained clean repository state.
+- Fixed `run_all.sh` so it initializes pyenv when run in a non-interactive shell.
 
 ## Remaining Action Items
 
@@ -18,6 +19,7 @@
 - Modify `setup.sh` to skip automl-py310 creation gracefully when Python 3.10 is unavailable.
 - Enhance console logs using `rich.tree` so run progress is shown as a clear tree.
 - Verify `run_all.sh` smoke test passes after updating dependencies.
+- Add a missing `run_all.sh` script to launch the orchestrator with all three engines for a quick smoke test.
 - Revise setup or CI to ensure required packages like `rich` install reliably without manual intervention.
 - Bundle prebuilt wheels or configure a local PyPI mirror so `make test` can run without internet access.
 
