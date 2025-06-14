@@ -183,6 +183,17 @@ python scripts/hyperparameter_tuner.py \
 ```
 The script tunes a `RandomForestRegressor` and saves the best parameters and CV score to the specified JSON file.
 
+### Ensemble Experiment Script
+Experiment with weighted ensembling of engine champions:
+
+```bash
+python scripts/ensemble_experiment.py \
+  --data DataSets/2/D2-Predictors.csv \
+  --target DataSets/2/D2-Targets.csv \
+  --time 120
+```
+This script runs all three engines, collects their predictions on a hold-out set, and combines them using a linear regression meta-model.
+
 ## Project Structure
 
 ```

@@ -18,7 +18,7 @@
 - TPOT: ❌ Failing with unexpected config_dict argument
 
 **Sub-tasks**:
-- [ ] Fix Auto-Sklearn installation and environment issues
+- [x] Fix Auto-Sklearn installation and environment issues (setup.sh pyenv-virtualenv plugin fix)
 - [x] Add script to verify Auto-Sklearn installation (`check_autosklearn_install.py`)
 - [ ] Debug TPOT parameter validation errors
 - [ ] Verify all three engines can complete training on D2
@@ -33,9 +33,9 @@
 
 **Sub-tasks**:
 - [ ] Baseline all engines on D2 (requires Goal 1 completion)
-- [ ] Implement hyperparameter tuning strategies
+- [x] Implement hyperparameter tuning strategies (RandomizedSearchCV utility)
 - [ ] Add feature engineering pipeline
-- [ ] Experiment with ensemble methods
+- [x] Experiment with ensemble methods (weighted ensemble script)
 - [ ] Document optimization strategies and results
 
 ## 🔧 Infrastructure & Setup Tasks
@@ -91,6 +91,10 @@
 - [x] Restructured TODO with goal-oriented delegation system
 - [x] Created Dataset 2 training script (`run_d2.sh`) with proper pyenv initialization
 - [x] Added Auto-Sklearn verification helper script (`check_autosklearn_install.py`)
+- [x] Reviewed and processed 5 new PRs (#137-#141): extracted valuable code while preserving AGENTS.md structure
+- [x] Added hyperparameter tuning utility (`scripts/hyperparameter_tuner.py`) with RandomizedSearchCV
+- [x] Fixed Auto-Sklearn setup with pyenv-virtualenv plugin installation
+- [x] Added ensemble experiment script (`scripts/ensemble_experiment.py`) for weighted ensembling
 
 ### Bug Fixes & Improvements
 - [x] Fixed orchestrator AttributeError for duration calculation
@@ -101,7 +105,8 @@
 ## 🚨 Current PR Status
 
 **Active PRs**: 0 open (all current PRs closed due to TODO structure conflicts)
-- PRs #124-#127 closed: reverted new goal-oriented TODO structure
+- PRs #124-#127 closed: reverted new goal-oriented TODO structure  
+- PRs #137-#141 closed: reverted AGENTS.md detailed instructions (valuable code extracted manually)
 - Team should create new PRs based on current main branch and goal structure
 - Focus on Goals 1 & 2 with actual dataset training results
 
