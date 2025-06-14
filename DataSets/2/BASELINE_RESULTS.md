@@ -8,3 +8,13 @@ The orchestrator was executed with all three engine wrappers using a 60 second t
 - MAE: 0.00064
 
 AutoGluon achieved an average cross-validation R² of 0.949.
+
+## Leaderboard After Optimization
+
+| Step | R² |
+|------|------|
+| Baseline (AutoGluon) | 0.8382 |
+| RandomForest Tuning | 0.9601 |
+| Weighted Ensemble | **0.9601** |
+
+Further details can be found in `D2_Optimization.md`.
