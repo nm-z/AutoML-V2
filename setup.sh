@@ -3,7 +3,7 @@
 # AutoML Harness Setup Script
 # This script sets up the complete AutoML environment with proper Python environments
 
-set -e    # Stop on first failure
+set -eo pipefail
 
 # Optional Auto-Sklearn environment
 ENABLE_AS=false
@@ -115,6 +115,10 @@ setup_pyenv() {
     # Ensure the plugin is loaded for the rest of the script
     eval "$(pyenv init -)"
     eval "$(pyenv virtualenv-init -)"
+
+    # Shell function provided by plugin
+    alias venv_on='pyenv activate'
+    alias venv_off='pyenv deactivate'
 }
 
 # Create pyenv virtual environments
@@ -154,7 +158,8 @@ install_env_tpa_deps() {
         return
     fi
 
-    # Make sure we're inside automl-py311
+    # Ensure we're in the correct environment
+    pyenv deactivate || true # Deactivate if any environment is active
     pyenv activate automl-py311
     python -m pip install --upgrade pip
 
@@ -165,9 +170,8 @@ install_env_tpa_deps() {
         offline_opts=(--no-index --find-links wheels)
     fi
 
-    # Autogluon is Python<=3.10 for now – install it in the 3.10 env instead.
-    sed -i '/autogluon.tabular/d' requirements-py311.txt
-    python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py311.txt
+    python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py311.txt \
+        || { log_error "pip install failed"; venv_off; exit 1; }
 }
 
 # Install dependencies in automl-py310
@@ -179,6 +183,8 @@ install_env_as_deps() {
 
     log_info "Installing dependencies in automl-py310..."
 
+    # Ensure we're in the correct environment
+    pyenv deactivate || true # Deactivate if any environment is active
     pyenv activate automl-py310
     python -m pip install --upgrade pip
 
@@ -190,7 +196,12 @@ install_env_as_deps() {
     fi
 
     # Pull Autogluon + LightGBM + TPOT here (Python 3.10)
-    python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py310.txt
+    sed -i '/autogluon.tabular/d' requirements-py310.txt
+    sed -i '/xgboost/d' requirements-py310.txt
+    sed -i '/lightgbm/d' requirements-py310.txt
+
+    python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py310.txt \
+        || { log_error "pip install failed"; venv_off; exit 1; }
 }
 
 # Create necessary directories
@@ -216,6 +227,7 @@ test_environments() {
     # Test automl-py310 only if it exists
     if pyenv versions --bare | grep -q "automl-py310"; then
         log_info "Testing automl-py310 environment..."
+        pyenv deactivate || true # Deactivate if any environment is active
         pyenv activate automl-py310
 
         if [[ "$PYTHON_CMD" == "python3.13" ]]; then
@@ -230,24 +242,25 @@ print(f'  - Pandas version: {pd.__version__}')
 "
         else
             python -c "
-import auto_sklearn.regression
+import autosklearn.regression
 import sklearn
 import numpy as np
 import pandas as pd
 print('✓ Auto-Sklearn environment working correctly')
-print(f'  - Auto-Sklearn version: {auto_sklearn.__version__}')
+print(f'  - Auto-Sklearn version: {autosklearn.__version__}')
 print(f'  - Scikit-learn version: {sklearn.__version__}')
 print(f'  - NumPy version: {np.__version__}')
 print(f'  - Pandas version: {pd.__version__}')
 "
         fi
-        pyenv deactivate
+        pyenv deactivate || true # Deactivate after testing
     else
         log_warning "automl-py310 environment not found. Skipping Auto-Sklearn test."
     fi
 
     # Test automl-py311
     log_info "Testing automl-py311 environment..."
+    pyenv deactivate || true # Deactivate if any environment is active
     pyenv activate automl-py311
     
     if [[ "$PYTHON_CMD" == "python3.13" ]]; then
@@ -287,7 +300,7 @@ print(f'  - NumPy version: {np.__version__}')
 print(f'  - Pandas version: {pd.__version__}')
 "
     fi
-    deactivate
+    pyenv deactivate || true # Deactivate after testing
     
     log_success "All environments tested successfully"
 }
@@ -299,6 +312,7 @@ post_setup_check() {
     ALL_LIBS_OK=true
 
     # Check automl-py311 libraries
+    pyenv deactivate || true # Deactivate if any environment is active
     pyenv activate automl-py311
     REQUIRED_TPA_LIBS=(
         "numpy"
@@ -320,10 +334,11 @@ post_setup_check() {
             log_success "✓ $lib is installed."
         fi
     done
-    pyenv deactivate
+    pyenv deactivate || true # Deactivate after checking
 
     # Check automl-py310 libraries if environment exists
     if pyenv versions --bare | grep -q "automl-py310"; then
+        pyenv deactivate || true # Deactivate if any environment is active
         pyenv activate automl-py310
         REQUIRED_AS_LIBS=(
             "numpy"
@@ -331,7 +346,7 @@ post_setup_check() {
             "scikit-learn"
             "joblib"
             "rich"
-            "auto_sklearn.regression"
+            "autosklearn.regression"
         )
         for lib in "${REQUIRED_AS_LIBS[@]}"; do
             log_info "Checking $lib..."
@@ -342,7 +357,7 @@ post_setup_check() {
                 log_success "✓ $lib is installed."
             fi
         done
-        pyenv deactivate
+        pyenv deactivate || true # Deactivate after checking
     else
         log_warning "automl-py310 environment not found. Skipping Auto-Sklearn library checks."
     fi
