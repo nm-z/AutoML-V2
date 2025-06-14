@@ -85,7 +85,7 @@
 ### Major Milestones
 - [x] Git LFS setup for large files (`.pkl`, `.json`, `DataSets/`, `05_outputs/`)
 - [x] Added run_all.sh for 60-second smoke testing
-- [x] Systematic PR review and cleanup (35 PRs total: #94-#131, merged #129, #131)
+- [x] Systematic PR review and cleanup (39 PRs total: #94-#133, merged #129, #131, rejected #128,#130,#132,#133)
 - [x] Added offline setup documentation for restricted environments
 - [x] Applied `deactivate` to `pyenv deactivate` fix in setup.sh
 - [x] Restructured TODO with goal-oriented delegation system
