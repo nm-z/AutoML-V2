@@ -72,6 +72,7 @@
 - [ ] Compare performance across engines
 - [ ] Identify optimization opportunities
 - [ ] Create reproducible training scripts
+- [ ] Provide offline dependency install instructions to unblock Dataset 2 training
 
 ### Dataset 3 (D3) - Future Work
 - [ ] Initial training runs with all engines

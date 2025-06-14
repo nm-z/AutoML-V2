@@ -161,6 +161,14 @@ Run the helper script to verify your setup. It activates the default environment
 ```
 All orchestrations run **AutoGluon**, **Auto-Sklearn**, and **TPOT** simultaneously. The `--all` flag ensures every run evaluates each engine before selecting a champion.
 
+### Training on Dataset 2
+The repository provides a convenience script to launch the orchestrator on **Dataset 2**.
+
+```bash
+./run_d2.sh
+```
+This uses all three engine wrappers on `DataSets/2/D2-Predictors.csv` and `DataSets/2/D2-Targets.csv`. Pass additional arguments after the script to forward them to `orchestrator.py`.
+
 ## Project Structure
 
 ```
