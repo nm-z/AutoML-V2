@@ -124,5 +124,16 @@ This framework solves the "**Which AutoML tool should I use?**" problem by:
 
 **Bottom Line:** You throw in your data, it runs 3 different AI approaches, picks the winner, and hands you the best machine learning model automatically. It's AutoML choosing the best AutoML! 🤯
 
+## Dataset 2 Results
+
+Running `./run_d2.sh` with the default 5‑second budget produced the following hold‑out metrics when the engines fell back to `LinearRegression`:
+
+| Engine | R² | RMSE | MAE |
+|-------|------|------|------|
+| TPOT | 0.9601 | 0.0005 | 0.0004 |
+| AutoGluon | 0.9601 | 0.0005 | 0.0004 |
+
+Auto-Sklearn could not run because the package is not installed. The wrapper reports the missing dependency and exits gracefully.
+
 
 
