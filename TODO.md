@@ -1,5 +1,12 @@
 # AutoML Project TODO
 
+## 🚨 IMPORTANT NOTICE FOR CONTRIBUTORS
+**As of latest update**: All PRs must be based on this new goal-oriented structure. PRs #124-#127 were closed because they reverted this structure. Please ensure your PRs:
+1. Start from the current main branch
+2. Preserve this goal-oriented TODO format
+3. Include actual dataset training results when relevant
+4. Align with Goals 1 or 2 below
+
 ## 🎯 Primary Goals
 
 ### Goal 1: Successfully Train All Engines on Dataset 2 (D2)
@@ -76,9 +83,10 @@
 ### Major Milestones
 - [x] Git LFS setup for large files (`.pkl`, `.json`, `DataSets/`, `05_outputs/`)
 - [x] Added run_all.sh for 60-second smoke testing
-- [x] Systematic PR review and cleanup (30 PRs total: #94-#123)
+- [x] Systematic PR review and cleanup (33 PRs total: #94-#127)
 - [x] Added offline setup documentation for restricted environments
 - [x] Applied `deactivate` to `pyenv deactivate` fix in setup.sh
+- [x] Restructured TODO with goal-oriented delegation system
 
 ### Bug Fixes & Improvements
 - [x] Fixed orchestrator AttributeError for duration calculation
@@ -88,10 +96,10 @@
 
 ## 🚨 Current PR Status
 
-**Active PRs**: 3 open (as of last check)
-- Review and process current PRs based on goals above
-- Ensure all PRs start from current main branch with pyenv initialization intact
-- Capture valuable ideas from rejected PRs in sub-tasks above
+**Active PRs**: 0 open (all current PRs closed due to TODO structure conflicts)
+- PRs #124-#127 closed: reverted new goal-oriented TODO structure
+- Team should create new PRs based on current main branch and goal structure
+- Focus on Goals 1 & 2 with actual dataset training results
 
 ## 📝 Notes for Contributors
 
@@ -100,4 +108,5 @@
 3. **Branch Management**: Always start from latest main branch
 4. **Documentation**: Include training results, error logs, and performance data in PRs
 5. **Testing**: Verify changes don't break existing pyenv initialization or smoke tests
+6. **TODO Format**: Preserve this goal-oriented structure in any TODO modifications
 
