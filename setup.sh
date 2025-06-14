@@ -115,24 +115,22 @@ create_environments() {
         exit 1
     fi
 
+    # Always attempt to create automl-py311
     if ! pyenv versions --bare | grep -q "automl-py311"; then
         log_info "Creating automl-py311 (TPOT + AutoGluon)..."
-        pyenv install -s 3.11
-        pyenv virtualenv 3.11 automl-py311
+        pyenv install -s 3.11 || log_warning "Python 3.11 installation failed or skipped, but continuing."
+        pyenv virtualenv 3.11 automl-py311 || log_warning "automl-py311 virtualenv creation failed or skipped, but continuing."
     else
         log_warning "automl-py311 already exists"
     fi
 
-    if [ "$ENABLE_AS" = true ]; then
-        if ! pyenv versions --bare | grep -q "automl-py310"; then
-            log_info "Creating automl-py310 (Auto-Sklearn)..."
-            pyenv install -s 3.10
-            pyenv virtualenv 3.10 automl-py310
-        else
-            log_warning "automl-py310 already exists"
-        fi
+    # Always attempt to create automl-py310
+    if ! pyenv versions --bare | grep -q "automl-py310"; then
+        log_info "Creating automl-py310 (Auto-Sklearn)..."
+        pyenv install -s 3.10 || log_warning "Python 3.10 installation failed or skipped, but continuing."
+        pyenv virtualenv 3.10 automl-py310 || log_warning "automl-py310 virtualenv creation failed or skipped, but continuing."
     else
-        log_warning "Skipping automl-py310 creation (requires Python <=3.10 or --with-as)"
+        log_warning "automl-py310 already exists"
     fi
 }
 
@@ -140,10 +138,13 @@ create_environments() {
 install_env_tpa_deps() {
     log_info "Installing dependencies in automl-py311..."
 
-    pyenv activate automl-py311
+    if ! pyenv versions --bare | grep -q "automl-py311"; then
+        log_warning "automl-py311 environment not found. Skipping TPOT + AutoGluon dependencies."
+        return
+    fi
 
     # Upgrade pip first
-    pip install --upgrade pip
+    pyenv exec python -m pip install --upgrade pip
 
     offline_opts=()
     if [ -n "${OFFLINE_WHEELS_DIR:-}" ] && [ -d "$OFFLINE_WHEELS_DIR" ]; then
@@ -153,12 +154,11 @@ install_env_tpa_deps() {
     fi
 
     if [ -f requirements-py311.txt ]; then
-        pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py311.txt
+        pyenv exec python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py311.txt
     else
-        pip install "${offline_opts[@]}" --only-binary=:all: -r requirements.txt
+        pyenv exec python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements.txt
     fi
 
-    pyenv deactivate
     log_success "automl-py311 dependencies installed successfully"
 }
 
@@ -171,10 +171,8 @@ install_env_as_deps() {
 
     log_info "Installing dependencies in automl-py310..."
 
-    pyenv activate automl-py310
-
     # Upgrade pip first
-    pip install --upgrade pip
+    pyenv exec python -m pip install --upgrade pip
 
     offline_opts=()
     if [ -n "${OFFLINE_WHEELS_DIR:-}" ] && [ -d "$OFFLINE_WHEELS_DIR" ]; then
@@ -185,16 +183,15 @@ install_env_as_deps() {
 
     if [ "$PYTHON_MINOR" -ge 11 ]; then
         log_warning "Auto-Sklearn 0.15.0 is incompatible with Python $PYTHON_MINOR; installing base stack only"
-        pip install "${offline_opts[@]}" --only-binary=:all: numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
+        pyenv exec python -m pip install "${offline_opts[@]}" --only-binary=:all: numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
     else
         if [ -f requirements-py310.txt ]; then
-            pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py310.txt
+            pyenv exec python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py310.txt
         else
-            pip install "${offline_opts[@]}" --only-binary=:all: auto-sklearn==0.15.0 numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
+            pyenv exec python -m pip install "${offline_opts[@]}" --only-binary=:all: auto-sklearn==0.15.0 numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
         fi
     fi
 
-    pyenv deactivate
     log_success "automl-py310 dependencies installed successfully"
 }
 
