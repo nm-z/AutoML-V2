@@ -3,7 +3,7 @@
 # AutoML Harness Setup Script
 # This script sets up the complete AutoML environment with proper Python environments
 
-# set -e  # Exit on any error
+set -e    # Stop on first failure
 
 # Optional Auto-Sklearn environment
 ENABLE_AS=false
@@ -165,13 +165,9 @@ install_env_tpa_deps() {
         offline_opts=(--no-index --find-links wheels)
     fi
 
-    if [ -f requirements-py311.txt ]; then
-        python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py311.txt
-    else
-        python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements.txt
-    fi
-
-    log_success "automl-py311 dependencies installed successfully"
+    # Autogluon is Python<=3.10 for now – install it in the 3.10 env instead.
+    sed -i '/autogluon.tabular/d' requirements-py311.txt
+    python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py311.txt
 }
 
 # Install dependencies in automl-py310
@@ -193,18 +189,8 @@ install_env_as_deps() {
         offline_opts=(--no-index --find-links wheels)
     fi
 
-    if [ "$PYTHON_MINOR" -ge 11 ]; then
-        log_warning "Auto-Sklearn 0.15.0 is incompatible with Python $PYTHON_MINOR; installing base stack only"
-        python -m pip install "${offline_opts[@]}" --only-binary=:all: numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
-    else
-        if [ -f requirements-py310.txt ]; then
-            python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py310.txt
-        else
-            python -m pip install "${offline_opts[@]}" --only-binary=:all: auto-sklearn==0.15.0 numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
-        fi
-    fi
-
-    log_success "automl-py310 dependencies installed successfully"
+    # Pull Autogluon + LightGBM + TPOT here (Python 3.10)
+    python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py310.txt
 }
 
 # Create necessary directories
