@@ -20,6 +20,7 @@ def load_orchestrator(monkeypatch):
         'rich.tree',
         'scripts',
         'scripts.data_loader',
+        'scripts.feature_engineering',
         'engines',
         'engines.auto_sklearn_wrapper',
         'engines.tpot_wrapper',
@@ -37,6 +38,9 @@ def load_orchestrator(monkeypatch):
     def load_data(*args, **kwargs):
         return None, None
     dl_mod.load_data = load_data
+    fe_mod = types.ModuleType('scripts.feature_engineering')
+    fe_mod.engineer_features = lambda X: (X, types.SimpleNamespace(named_steps={'pca': types.SimpleNamespace(n_components_=1)}))
+    monkeypatch.setitem(sys.modules, 'scripts.feature_engineering', fe_mod)
     sys.modules['engines'].discover_available = lambda: []
     sys.modules['engines.auto_sklearn_wrapper'].AutoSklearnEngine = object
     sys.modules['engines.tpot_wrapper'].TPOTEngine = object

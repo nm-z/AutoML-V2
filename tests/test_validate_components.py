@@ -48,6 +48,9 @@ def load_orchestrator(monkeypatch):
     data_loader = types.ModuleType("scripts.data_loader")
     data_loader.load_data = lambda *a, **k: (None, None)
     monkeypatch.setitem(sys.modules, "scripts.data_loader", data_loader)
+    fe_mod = types.ModuleType("scripts.feature_engineering")
+    fe_mod.engineer_features = lambda X: (X, types.SimpleNamespace(named_steps={'pca': types.SimpleNamespace(n_components_=1)}))
+    monkeypatch.setitem(sys.modules, "scripts.feature_engineering", fe_mod)
 
     engines_mod = types.ModuleType("engines")
     monkeypatch.setitem(sys.modules, "engines", engines_mod)

@@ -27,7 +27,8 @@ from rich.console import Console
 from rich.tree import Tree
 import subprocess # Added subprocess
 
-from scripts.data_loader import load_data # Import the new data_loader
+from scripts.data_loader import load_data  # Data loader helper
+from scripts.feature_engineering import engineer_features
 from engines import discover_available
 from engines.auto_sklearn_wrapper import AutoSklearnEngine
 from engines.tpot_wrapper import TPOTEngine
@@ -850,13 +851,25 @@ def _cli() -> None:
 
     # Load data
     try:
-        # The data_loader.py function now handles resolving the exact file paths
-        # if a directory is provided, so we can pass args.data and args.target directly.
+        # data_loader handles resolving the exact file paths
         X, y = load_data(args.data, args.target)
         logger.info(f"Data loaded successfully. X shape: {X.shape}, y shape: {y.shape}")
     except Exception as e:
         logger.error(f"Failed to load data: {e}", exc_info=True)
-        sys.exit(1) # Terminate pipeline immediately
+        sys.exit(1)  # Terminate pipeline immediately
+
+    # ------------------------------------------------------------------
+    # Feature Engineering
+    # ------------------------------------------------------------------
+    try:
+        X, fe_pipeline = engineer_features(X)
+        logger.info(
+            "Feature engineering applied with %d components",
+            fe_pipeline.named_steps["pca"].n_components_,
+        )
+    except Exception as e:
+        logger.error(f"Feature engineering failed: {e}", exc_info=True)
+        sys.exit(1)
 
     # Partition data for final hold-out set
     from sklearn.model_selection import train_test_split
