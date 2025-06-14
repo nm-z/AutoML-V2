@@ -19,6 +19,7 @@
 
 **Sub-tasks**:
 - [ ] Fix Auto-Sklearn installation and environment issues
+- [ ] Add script to verify Auto-Sklearn installation (`check_autosklearn_install.py`)
 - [ ] Debug TPOT parameter validation errors
 - [ ] Verify all three engines can complete training on D2
 - [ ] Document training results and performance metrics

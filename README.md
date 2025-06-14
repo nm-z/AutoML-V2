@@ -254,6 +254,10 @@ ensuring they persist between runs.
   bundle the required wheels or configure a local PyPI mirror so
   setup and `make test` can run offline.
 
+- **Auto-Sklearn missing** – If you encounter `ModuleNotFoundError: autosklearn`,
+  activate the Auto-Sklearn environment and run `python scripts/check_autosklearn_install.py`
+  to verify the installation.
+
 - **Python version incompatibilities** – AutoGluon and Auto-Sklearn are skipped
   on Python 3.13. Use Python 3.11 for full functionality.
 
