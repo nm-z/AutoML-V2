@@ -704,6 +704,26 @@ def _validate_components_availability() -> None:
             "Missing components: " + ", ".join(sorted(missing))
         )
 
+def _directory_to_tree(path: Path) -> Tree:
+    """Construct a rich ``Tree`` representing the directory contents."""
+    root = Tree(str(path))
+
+    def _add(branch: Tree, sub_path: Path) -> None:
+        for child in sorted(sub_path.iterdir()):
+            if child.is_dir():
+                new_branch = branch.add(f"{child.name}/")
+                _add(new_branch, child)
+            else:
+                branch.add(child.name)
+
+    _add(root, path)
+    return root
+
+
+def _print_directory_tree(path: Path) -> None:
+    """Print the artifact directory structure using ``rich.tree``."""
+    console.print(_directory_to_tree(path))
+
 def _cli() -> None:
     """Parses command-line arguments and orchestrates the AutoML pipeline."""
     parser = argparse.ArgumentParser(
@@ -764,6 +784,11 @@ def _cli() -> None:
         type=int,
         default=os.cpu_count() or 1,
         help="Number of CPU threads to use inside the container",
+    )
+    parser.add_argument(
+        "--tree",
+        action="store_true",
+        help="Print artifact directory tree after run",
     )
 
     args = parser.parse_args()
@@ -936,6 +961,8 @@ def _cli() -> None:
         sys.exit(1) # Terminate pipeline immediately
 
     console.log("[bold green]AutoML Orchestrator Run Completed[/bold green]")
+    if args.tree:
+        _print_directory_tree(run_dir)
 
 
 if __name__ == "__main__":

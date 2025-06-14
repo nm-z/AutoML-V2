@@ -140,7 +140,8 @@ pyenv activate automl-py311
 python orchestrator.py --all --time 3600 \
   --data DataSets/3/predictors_Hold\ 1\ Full_20250527_151252.csv \
   --target DataSets/3/targets_Hold\ 1\ Full_20250527_151252.csv \
-  --cpus 4
+  --cpus 4 \
+  --tree
 
 # Use `--cpus` to limit how many threads each AutoML engine and the underlying
 # BLAS libraries may use. This is especially important when running inside a
@@ -179,8 +180,9 @@ AutoML-Harness/
 
 All runs generate artifacts in `05_outputs/<dataset_name>/`:
 - **`*_champion.pkl`** - Trained pipeline for each engine
-- **`metrics.json`** - Comprehensive 5×3 CV performance metrics  
+- **`metrics.json`** - Comprehensive 5×3 CV performance metrics
 - **`*.log`** - Detailed execution logs
+Pass `--tree` to print this directory structure when the run finishes.
 
 ## System Requirements
 
