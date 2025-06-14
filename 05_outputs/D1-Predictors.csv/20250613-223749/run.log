@@ -1,0 +1,36 @@
+2025-06-13 22:37:50,110 - INFO - Data loaded successfully. X shape: (400, 4806), y shape: (400,)
+2025-06-13 22:37:50,118 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
+2025-06-13 22:37:53,237 - ERROR - [Orchestrator] Error from tpot_wrapper child process:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/tpot/base.py", line 1388, in _check_dataset
+    X, y = check_X_y(features, target, accept_sparse=True, dtype=None)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sklearn/utils/validation.py", line 1279, in check_X_y
+    y = _check_y(y, multi_output=multi_output, y_numeric=y_numeric, estimator=estimator)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sklearn/utils/validation.py", line 1300, in _check_y
+    y = column_or_1d(y, warn=True)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sklearn/utils/validation.py", line 1342, in column_or_1d
+    y = check_array(
+        ^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sklearn/utils/validation.py", line 1097, in check_array
+    array.flags.writeable = True
+    ^^^^^^^^^^^^^^^^^^^^^
+ValueError: cannot set WRITEABLE flag to True of this array
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/orchestrator.py", line 485, in _runner
+    fitted_model = wrapper_instance.fit(X_obj, y_obj)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/engines/tpot_wrapper.py", line 168, in fit
+    self._tpot.fit(X, y)
+  File "/usr/local/lib/python3.11/site-packages/tpot/base.py", line 727, in fit
+    features, target = self._check_dataset(features, target, sample_weight)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/tpot/base.py", line 1400, in _check_dataset
+    raise ValueError(
+ValueError: Error: Input data is not in a valid format. Please confirm that the input data is scikit-learn compatible. For example, the features must be a 2-D array and target labels must be a 1-D array.
+

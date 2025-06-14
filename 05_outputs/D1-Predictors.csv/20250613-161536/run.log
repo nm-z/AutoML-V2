@@ -1,0 +1,23 @@
+2025-06-13 16:15:36,510 - INFO - Data loaded successfully. X shape: (400, 4806), y shape: (400,)
+2025-06-13 16:15:36,517 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
+2025-06-13 16:15:36,518 - ERROR - An error occurred during meta-search or evaluation: No module named 'engines.auto_sklearn_wrapper'
+Traceback (most recent call last):
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 823, in _cli
+    champion_model, fitted_engines, per_engine_metrics = _meta_search_sequential(
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 320, in _meta_search_sequential
+    discovered_engines = discover_available()
+                         ^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/engines/__init__.py", line 39, in discover_available
+    wrapper = _import_wrapper(mod)
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/engines/__init__.py", line 30, in _import_wrapper
+    return importlib.import_module(f"{__name__}.{module_basename}")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1140, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'engines.auto_sklearn_wrapper'

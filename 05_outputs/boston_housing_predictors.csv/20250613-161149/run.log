@@ -1,0 +1,8 @@
+2025-06-13 16:11:49,447 - ERROR - Failed to load data: Predictors file not found: DataSets/1/boston_housing_predictors.csv
+Traceback (most recent call last):
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 777, in _cli
+    X, y = load_data(args.data, args.target)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/scripts/data_loader.py", line 55, in load_data
+    raise FileNotFoundError(f"Predictors file not found: {predictors_path}")
+FileNotFoundError: Predictors file not found: DataSets/1/boston_housing_predictors.csv

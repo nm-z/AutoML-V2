@@ -1,0 +1,52 @@
+{
+  "run_meta": {
+    "timestamp_utc": "2025-06-13T23:14:40Z",
+    "budget_seconds": 60,
+    "metric": "r2",
+    "engines_invoked": [
+      "autogluon"
+    ],
+    "ensemble_enabled": false,
+    "total_duration_seconds": 66.6924726950001,
+    "data_path": "/home/nate/Desktop/AutoML/DataSets/1/D1-Predictors.csv",
+    "target_path": "/home/nate/Desktop/AutoML/DataSets/1/D1-Targets.csv"
+  },
+  "dataset": {
+    "data_path": "DataSets/1/D1-Predictors.csv",
+    "target_path": "DataSets/1/D1-Targets.csv",
+    "n_rows": 400,
+    "n_features": 4806,
+    "target_name": "D1-Targets"
+  },
+  "holdout_metrics": {
+    "r2": 0.5767329961073098,
+    "rmse": 0.0014352263378846677,
+    "mae": 0.0009769856568429469
+  },
+  "per_engine_cv_metrics": {
+    "tpot_wrapper": {
+      "r2_mean": -1.05059366067845,
+      "r2_std": 1.022969480831629,
+      "rmse_mean": 0.002308293599907342,
+      "rmse_std": 0.00034584896071413243,
+      "mae_mean": 0.0016969356177532027,
+      "mae_std": 0.00019308085776679852,
+      "duration_seconds": 3.481298032998893
+    },
+    "autogluon_wrapper": {
+      "r2_mean": 0.8089582243090316,
+      "r2_std": 0.04128312134676857,
+      "rmse_mean": 0.0007557661203982333,
+      "rmse_std": 0.00016630088029925748,
+      "mae_mean": 0.0004931997552752495,
+      "mae_std": 8.173030126652844e-05,
+      "duration_seconds": 62.76551312400079
+    }
+  },
+  "champion_pipeline_info": [
+    {
+      "step": "AutoGluonSklearnWrapper",
+      "params": {}
+    }
+  ]
+}

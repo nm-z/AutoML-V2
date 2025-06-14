@@ -1,0 +1,12 @@
+2025-06-13 17:06:40,521 - INFO - Data loaded successfully. X shape: (400, 4806), y shape: (400,)
+2025-06-13 17:06:40,546 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
+2025-06-13 17:06:44,468 - ERROR - [Orchestrator] Error from auto_sklearn_wrapper child process:
+Traceback (most recent call last):
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 514, in _runner
+    fitted_model = wrapper_instance.fit(X_obj, y_obj)
+  File "/home/nate/Desktop/AutoML/engines/auto_sklearn_wrapper.py", line 141, in fit
+    translated_metric = self._translate_metric(self._metric)
+  File "/home/nate/Desktop/AutoML/engines/auto_sklearn_wrapper.py", line 218, in _translate_metric
+    from autosklearn.metrics import mean_absolute_error, mean_squared_error, r2
+ModuleNotFoundError: No module named 'autosklearn'
+

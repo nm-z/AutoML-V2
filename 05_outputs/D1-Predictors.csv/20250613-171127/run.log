@@ -1,0 +1,63 @@
+2025-06-13 17:11:28,140 - INFO - Data loaded successfully. X shape: (400, 4806), y shape: (400,)
+2025-06-13 17:11:28,232 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
+2025-06-13 17:11:31,601 - ERROR - [Orchestrator] Error from auto_sklearn_wrapper child process:
+Traceback (most recent call last):
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 514, in _runner
+    fitted_model = wrapper_instance.fit(X_obj, y_obj)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/engines/auto_sklearn_wrapper.py", line 141, in fit
+    translated_metric = self._translate_metric(self._metric)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/engines/auto_sklearn_wrapper.py", line 218, in _translate_metric
+    from autosklearn.metrics import mean_absolute_error, mean_squared_error, r2
+ModuleNotFoundError: No module named 'autosklearn'
+
+2025-06-13 17:11:33,545 - ERROR - [Orchestrator] Error from tpot_wrapper child process:
+Traceback (most recent call last):
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/base.py", line 817, in fit
+    self._pop, _ = eaMuPlusLambda(
+                   ^^^^^^^^^^^^^^^
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/gp_deap.py", line 285, in eaMuPlusLambda
+    per_generation_function(gen)
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/base.py", line 1184, in _check_periodic_pipeline
+    self._update_top_pipeline()
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/base.py", line 922, in _update_top_pipeline
+    sklearn_pipeline = self._toolbox.compile(expr=pipeline)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/base.py", line 1419, in _compile_to_sklearn
+    sklearn_pipeline_str = generate_pipeline_code(
+                           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/export_utils.py", line 365, in generate_pipeline_code
+    steps = _process_operator(pipeline_tree, operators)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/export_utils.py", line 401, in _process_operator
+    op_name = operator[0]
+              ~~~~~~~~^^^
+IndexError: list index out of range
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 514, in _runner
+    fitted_model = wrapper_instance.fit(X_obj, y_obj)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/engines/tpot_wrapper.py", line 169, in fit
+    self._tpot.fit(X, y)
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/base.py", line 864, in fit
+    raise e
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/base.py", line 855, in fit
+    self._update_top_pipeline()
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/base.py", line 922, in _update_top_pipeline
+    sklearn_pipeline = self._toolbox.compile(expr=pipeline)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/base.py", line 1419, in _compile_to_sklearn
+    sklearn_pipeline_str = generate_pipeline_code(
+                           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/export_utils.py", line 365, in generate_pipeline_code
+    steps = _process_operator(pipeline_tree, operators)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/.pyenv/versions/automl-harness/lib/python3.11/site-packages/tpot/export_utils.py", line 401, in _process_operator
+    op_name = operator[0]
+              ~~~~~~~~^^^
+IndexError: list index out of range
+

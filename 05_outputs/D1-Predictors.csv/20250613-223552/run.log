@@ -1,0 +1,77 @@
+2025-06-13 22:35:52,753 - INFO - Data loaded successfully. X shape: (400, 4806), y shape: (400,)
+2025-06-13 22:35:52,761 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
+2025-06-13 22:35:52,763 - INFO - [Orchestrator] Starting auto_sklearn_wrapper engine training...
+2025-06-13 22:35:52,763 - INFO - [Orchestrator|auto_sklearn_wrapper] Fitting model for auto_sklearn_wrapper...
+2025-06-13 22:35:52,763 - ERROR - [Orchestrator|auto_sklearn_wrapper] Error running engine auto_sklearn_wrapper: No module named 'autosklearn'
+Traceback (most recent call last):
+  File "/app/orchestrator.py", line 338, in _meta_search_sequential
+    fitted_model = engine.fit(X, y)
+                   ^^^^^^^^^^^^^^^^
+  File "/app/engines/auto_sklearn_wrapper.py", line 140, in fit
+    translated_metric = self._translate_metric(self._metric)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/engines/auto_sklearn_wrapper.py", line 217, in _translate_metric
+    from autosklearn.metrics import mean_absolute_error, mean_squared_error, r2
+ModuleNotFoundError: No module named 'autosklearn'
+2025-06-13 22:35:52,763 - INFO - [Orchestrator] Starting tpot_wrapper engine training...
+2025-06-13 22:35:52,764 - INFO - [Orchestrator|tpot_wrapper] Fitting model for tpot_wrapper...
+2025-06-13 22:35:54,566 - ERROR - [Orchestrator|tpot_wrapper] Error running engine tpot_wrapper: list index out of range
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/tpot/base.py", line 817, in fit
+    self._pop, _ = eaMuPlusLambda(
+                   ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/tpot/gp_deap.py", line 285, in eaMuPlusLambda
+    per_generation_function(gen)
+  File "/usr/local/lib/python3.11/site-packages/tpot/base.py", line 1184, in _check_periodic_pipeline
+    self._update_top_pipeline()
+  File "/usr/local/lib/python3.11/site-packages/tpot/base.py", line 922, in _update_top_pipeline
+    sklearn_pipeline = self._toolbox.compile(expr=pipeline)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/tpot/base.py", line 1419, in _compile_to_sklearn
+    sklearn_pipeline_str = generate_pipeline_code(
+                           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/tpot/export_utils.py", line 365, in generate_pipeline_code
+    steps = _process_operator(pipeline_tree, operators)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/tpot/export_utils.py", line 401, in _process_operator
+    op_name = operator[0]
+              ~~~~~~~~^^^
+IndexError: list index out of range
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/orchestrator.py", line 338, in _meta_search_sequential
+    fitted_model = engine.fit(X, y)
+                   ^^^^^^^^^^^^^^^^
+  File "/app/engines/tpot_wrapper.py", line 168, in fit
+    self._tpot.fit(X, y)
+  File "/usr/local/lib/python3.11/site-packages/tpot/base.py", line 864, in fit
+    raise e
+  File "/usr/local/lib/python3.11/site-packages/tpot/base.py", line 855, in fit
+    self._update_top_pipeline()
+  File "/usr/local/lib/python3.11/site-packages/tpot/base.py", line 922, in _update_top_pipeline
+    sklearn_pipeline = self._toolbox.compile(expr=pipeline)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/tpot/base.py", line 1419, in _compile_to_sklearn
+    sklearn_pipeline_str = generate_pipeline_code(
+                           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/tpot/export_utils.py", line 365, in generate_pipeline_code
+    steps = _process_operator(pipeline_tree, operators)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/tpot/export_utils.py", line 401, in _process_operator
+    op_name = operator[0]
+              ~~~~~~~~^^^
+IndexError: list index out of range
+2025-06-13 22:35:54,568 - INFO - [Orchestrator] Starting autogluon_wrapper engine training...
+2025-06-13 22:35:54,568 - INFO - [Orchestrator|autogluon_wrapper] Fitting model for autogluon_wrapper...
+2025-06-13 22:36:54,824 - INFO - [Orchestrator|autogluon_wrapper] Model fitting complete for autogluon_wrapper.
+2025-06-13 22:36:54,825 - INFO - [Orchestrator|autogluon_wrapper] Starting 3x5 Repeated K-Fold Cross-Validation for autogluon_wrapper...
+2025-06-13 22:36:58,714 - INFO - [Orchestrator|autogluon_wrapper] Cross-Validation complete for autogluon_wrapper.
+2025-06-13 22:36:58,715 - INFO - [Orchestrator|autogluon_wrapper] Metrics: R²=0.8090 (±0.0413), RMSE=0.0008 (±0.0002), MAE=0.0005 (±0.0001)
+2025-06-13 22:36:58,717 - INFO - Champion model selected: autogluon_wrapper with mean R² of 0.8090
+2025-06-13 22:36:58,717 - INFO - Evaluating champion model on the hold-out set...
+2025-06-13 22:36:58,760 - INFO - Champion Model Hold-out Metrics: R²=0.5767, RMSE=0.0014, MAE=0.0010
+2025-06-13 22:36:58,772 - INFO - Overall champion model saved to 05_outputs/D1-Predictors.csv/20250613-223552/overall_champion.pkl
+2025-06-13 22:36:58,772 - INFO - Metrics saved to 05_outputs/D1-Predictors.csv/20250613-223552/metrics.json
+2025-06-13 22:36:58,783 - INFO - Champion model for autogluon_wrapper saved to 05_outputs/D1-Predictors.csv/20250613-223552/autogluon_wrapper_champion.pkl

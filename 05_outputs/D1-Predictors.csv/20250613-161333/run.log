@@ -1,0 +1,34 @@
+2025-06-13 16:13:34,120 - INFO - Data loaded successfully. X shape: (400, 4806), y shape: (400,)
+2025-06-13 16:13:34,128 - INFO - Data split into training/CV (320 rows) and hold-out (80 rows) sets.
+2025-06-13 16:13:34,128 - INFO - [Orchestrator] Starting auto_sklearn_wrapper engine training...
+2025-06-13 16:13:34,128 - INFO - [Orchestrator|auto_sklearn_wrapper] Fitting model for auto_sklearn_wrapper...
+2025-06-13 16:13:34,129 - ERROR - [Orchestrator|auto_sklearn_wrapper] Error running engine auto_sklearn_wrapper: No module named 'autosklearn'
+Traceback (most recent call last):
+  File "/home/nate/Desktop/AutoML/orchestrator.py", line 339, in _meta_search_sequential
+    fitted_model = engine.fit(X, y)
+                   ^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/engines/auto_sklearn_wrapper.py", line 140, in fit
+    translated_metric = self._translate_metric(self._metric)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nate/Desktop/AutoML/engines/auto_sklearn_wrapper.py", line 217, in _translate_metric
+    from autosklearn.metrics import mean_absolute_error, mean_squared_error, r2
+ModuleNotFoundError: No module named 'autosklearn'
+2025-06-13 16:13:34,129 - INFO - [Orchestrator] Starting tpot_wrapper engine training...
+2025-06-13 16:13:34,129 - INFO - [Orchestrator|tpot_wrapper] Fitting model for tpot_wrapper...
+2025-06-13 16:13:34,319 - INFO - [Orchestrator|tpot_wrapper] Model fitting complete for tpot_wrapper.
+2025-06-13 16:13:34,320 - INFO - [Orchestrator|tpot_wrapper] Starting 3x5 Repeated K-Fold Cross-Validation for tpot_wrapper...
+2025-06-13 16:13:37,610 - INFO - [Orchestrator|tpot_wrapper] Cross-Validation complete for tpot_wrapper.
+2025-06-13 16:13:37,611 - INFO - [Orchestrator|tpot_wrapper] Metrics: R²=-1.0506 (±1.0230), RMSE=0.0023 (±0.0003), MAE=0.0017 (±0.0002)
+2025-06-13 16:13:37,611 - INFO - [Orchestrator] Starting autogluon_wrapper engine training...
+2025-06-13 16:13:37,611 - INFO - [Orchestrator|autogluon_wrapper] Fitting model for autogluon_wrapper...
+2025-06-13 16:14:38,015 - INFO - [Orchestrator|autogluon_wrapper] Model fitting complete for autogluon_wrapper.
+2025-06-13 16:14:38,016 - INFO - [Orchestrator|autogluon_wrapper] Starting 3x5 Repeated K-Fold Cross-Validation for autogluon_wrapper...
+2025-06-13 16:14:40,376 - INFO - [Orchestrator|autogluon_wrapper] Cross-Validation complete for autogluon_wrapper.
+2025-06-13 16:14:40,377 - INFO - [Orchestrator|autogluon_wrapper] Metrics: R²=0.8090 (±0.0413), RMSE=0.0008 (±0.0002), MAE=0.0005 (±0.0001)
+2025-06-13 16:14:40,378 - INFO - Champion model selected: autogluon_wrapper with mean R² of 0.8090
+2025-06-13 16:14:40,379 - INFO - Evaluating champion model on the hold-out set...
+2025-06-13 16:14:40,440 - INFO - Champion Model Hold-out Metrics: R²=0.5767, RMSE=0.0014, MAE=0.0010
+2025-06-13 16:14:40,450 - INFO - Overall champion model saved to 05_outputs/D1-Predictors.csv/20250613-161333/overall_champion.pkl
+2025-06-13 16:14:40,450 - INFO - Metrics saved to 05_outputs/D1-Predictors.csv/20250613-161333/metrics.json
+2025-06-13 16:14:40,451 - INFO - Champion model for tpot_wrapper saved to 05_outputs/D1-Predictors.csv/20250613-161333/tpot_wrapper_champion.pkl
+2025-06-13 16:14:40,461 - INFO - Champion model for autogluon_wrapper saved to 05_outputs/D1-Predictors.csv/20250613-161333/autogluon_wrapper_champion.pkl
