@@ -240,7 +240,9 @@ ensuring they persist between runs.
 
 - **Setup problems** – If `./setup.sh` fails, follow the instructions in the
   *Manual Installation* section to create `env-as` and `env-tpa` manually and
-  install the required packages.
+  install the required packages. If network access is restricted,
+  bundle the required wheels or configure a local PyPI mirror so
+  setup and `make test` can run offline.
 
 - **Python version incompatibilities** – AutoGluon and Auto-Sklearn are skipped
   on Python 3.13. Use Python 3.11 for full functionality.
