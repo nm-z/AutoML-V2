@@ -112,6 +112,9 @@ sudo apt install python3.11 python3.11-venv python3.11-dev
 ### Manual Installation (if setup.sh fails)
 
 ```bash
+# Ensure the pyenv-virtualenv plugin is installed
+git clone https://github.com/pyenv/pyenv-virtualenv.git $(pyenv root)/plugins/pyenv-virtualenv
+
 # Create environments with pyenv
 pyenv virtualenv 3.11 automl-py311
 # Optional Auto-Sklearn environment
@@ -168,6 +171,17 @@ The repository provides a convenience script to launch the orchestrator on **Dat
 ./run_d2.sh
 ```
 This uses all three engine wrappers on `DataSets/2/D2-Predictors.csv` and `DataSets/2/D2-Targets.csv`. Pass additional arguments after the script to forward them to `orchestrator.py`.
+
+### Hyperparameter Tuning Utility
+Use the new helper script to perform a quick hyperparameter search with scikit-learn's `RandomizedSearchCV`:
+
+```bash
+python scripts/hyperparameter_tuner.py \
+  --data DataSets/2/D2-Predictors.csv \
+  --target DataSets/2/D2-Targets.csv \
+  --output rf_tuning_results.json
+```
+The script tunes a `RandomForestRegressor` and saves the best parameters and CV score to the specified JSON file.
 
 ## Project Structure
 

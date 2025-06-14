@@ -85,21 +85,32 @@ setup_pyenv() {
     if ! command -v pyenv &> /dev/null; then
         log_info "Installing pyenv..."
         curl https://pyenv.run | bash
-        
+
         # Add pyenv to PATH for current session
         export PYENV_ROOT="$HOME/.pyenv"
         export PATH="$PYENV_ROOT/bin:$PATH"
         eval "$(pyenv init -)"
-        eval "$(pyenv virtualenv-init -)"
-        
-        log_warning "Please add the following to your ~/.bashrc or ~/.zshrc:"
-        echo 'export PYENV_ROOT="$HOME/.pyenv"'
-        echo 'export PATH="$PYENV_ROOT/bin:$PATH"'
-        echo 'eval "$(pyenv init -)"'
-        echo 'eval "$(pyenv virtualenv-init -)"'
     else
+        export PYENV_ROOT="${PYENV_ROOT:-$HOME/.pyenv}"
+        export PATH="$PYENV_ROOT/bin:$PATH"
+        eval "$(pyenv init -)"
         log_success "pyenv is already installed"
     fi
+
+    if [ ! -d "$(pyenv root)/plugins/pyenv-virtualenv" ]; then
+        log_info "Installing pyenv-virtualenv plugin..."
+        git clone https://github.com/pyenv/pyenv-virtualenv.git "$(pyenv root)/plugins/pyenv-virtualenv"
+    else
+        log_success "pyenv-virtualenv plugin already installed"
+    fi
+
+    eval "$(pyenv virtualenv-init -)"
+
+    log_warning "Please add the following to your ~/.bashrc or ~/.zshrc:"
+    echo 'export PYENV_ROOT="$HOME/.pyenv"'
+    echo 'export PATH="$PYENV_ROOT/bin:$PATH"'
+    echo 'eval "$(pyenv init -)"'
+    echo 'eval "$(pyenv virtualenv-init -)"'
 }
 
 # Create pyenv virtual environments
@@ -274,7 +285,7 @@ print(f'  - NumPy version: {np.__version__}')
 print(f'  - Pandas version: {pd.__version__}')
 "
     fi
-    deactivate
+    pyenv deactivate
     
     log_success "All environments tested successfully"
 }
