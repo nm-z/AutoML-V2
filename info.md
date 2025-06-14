@@ -43,8 +43,8 @@ This is where the **building blocks** live that the AutoML engines can choose fr
 ### **4. 🐍 Environment Hell Management**
 The **entire reason for the complexity** is Python version incompatibility:
 
-- **`env-as/`** - Auto-Sklearn environment (Python ≤3.10)
-- **`env-tpa/`** - TPOT + AutoGluon environment (Python 3.11+)
+- **`automl-py310`** - Auto-Sklearn environment (Python ≤3.10)
+- **`automl-py311`** - TPOT + AutoGluon environment (Python 3.11+)
 - **`setup.sh`** - Creates both environments with correct dependencies
 - **`activate-*.sh`** - Switches between environments
 
@@ -87,7 +87,7 @@ Instead of manually picking which AutoML tool to use, this framework:
 🧩 components/              # ML building blocks library
 📁 DataSets/                # Your input data
 💾 05_outputs/              # Results and artifacts
-🐍 env-*/                   # Python environment isolation
+🐍 automl-py310/py311       # pyenv environments
 📋 AGENTS.md                # ChatGPT Codex agent docs (kept!)
 ```
 
@@ -96,11 +96,11 @@ Instead of manually picking which AutoML tool to use, this framework:
 ## **🎮 How To Use It**
 
 ```bash
-# 1. Setup environments (creates both env-as and env-tpa)
+# 1. Setup environments (creates both pyenv environments)
 ./setup.sh
 
-# 2. Activate the main environment  
-./activate-tpa.sh
+# 2. Activate the main environment
+pyenv activate automl-py311
 
 # 3. Run the competition
 python orchestrator.py --all --time 3600 \
@@ -108,6 +108,7 @@ python orchestrator.py --all --time 3600 \
   --target DataSets/3/targets.csv
 
 # 4. Check results in 05_outputs/dataset_name/
+pyenv deactivate
 ```
 
 ---

@@ -102,59 +102,65 @@ setup_pyenv() {
     fi
 }
 
-# Create virtual environments
+# Create pyenv virtual environments
 create_environments() {
-    log_info "Creating Python virtual environments..."
+    log_info "Creating Python environments with pyenv..."
 
-    # env-tpa is always required
-    if [ -d "env-tpa" ]; then
-        log_info "Removing existing env-tpa environment..."
-        rm -rf env-tpa
+    if ! command -v pyenv &> /dev/null; then
+        log_error "pyenv is required but not installed"
+        exit 1
     fi
-    log_info "Creating env-tpa (TPOT + AutoGluon environment)..."
-    $PYTHON_CMD -m venv env-tpa
-    log_success "Created env-tpa environment"
 
-    # Create env-as only when requested
-    if [ "$ENABLE_AS" = true ]; then
-        if [ -d "env-as" ]; then
-            log_info "Removing existing env-as environment..."
-            rm -rf env-as
-        fi
-        log_info "Creating env-as (Auto-Sklearn environment)..."
-        $PYTHON_CMD -m venv env-as
-        log_success "Created env-as environment"
+    if ! pyenv versions --bare | grep -q "automl-py311"; then
+        log_info "Creating automl-py311 (TPOT + AutoGluon)..."
+        pyenv install -s 3.11
+        pyenv virtualenv 3.11 automl-py311
     else
-        log_warning "Skipping env-as creation (requires Python <=3.10 or --with-as)"
+        log_warning "automl-py311 already exists"
+    fi
+
+    if [ "$ENABLE_AS" = true ]; then
+        if ! pyenv versions --bare | grep -q "automl-py310"; then
+            log_info "Creating automl-py310 (Auto-Sklearn)..."
+            pyenv install -s 3.10
+            pyenv virtualenv 3.10 automl-py310
+        else
+            log_warning "automl-py310 already exists"
+        fi
+    else
+        log_warning "Skipping automl-py310 creation (requires Python <=3.10 or --with-as)"
     fi
 }
 
-# Install dependencies in env-tpa
+# Install dependencies in automl-py311
 install_env_tpa_deps() {
-    log_info "Installing dependencies in env-tpa..."
+    log_info "Installing dependencies in automl-py311..."
 
-    source env-tpa/bin/activate
+    pyenv activate automl-py311
 
     # Upgrade pip first
     pip install --upgrade pip
 
-    # Install all Python dependencies from requirements.txt using wheels only
-    pip install --only-binary=:all: -r requirements.txt
+    if [ -f requirements-py311.txt ]; then
+        pip install --only-binary=:all: -r requirements-py311.txt
+    else
+        pip install --only-binary=:all: -r requirements.txt
+    fi
 
-    deactivate
-    log_success "env-tpa dependencies installed successfully"
+    pyenv deactivate
+    log_success "automl-py311 dependencies installed successfully"
 }
 
-# Install dependencies in env-as
+# Install dependencies in automl-py310
 install_env_as_deps() {
-    if [ ! -d "env-as" ]; then
-        log_warning "env-as environment not found. Skipping Auto-Sklearn dependencies"
+    if ! pyenv versions --bare | grep -q "automl-py310"; then
+        log_warning "automl-py310 environment not found. Skipping Auto-Sklearn dependencies"
         return
     fi
 
-    log_info "Installing dependencies in env-as..."
+    log_info "Installing dependencies in automl-py310..."
 
-    source env-as/bin/activate
+    pyenv activate automl-py310
 
     # Upgrade pip first
     pip install --upgrade pip
@@ -163,11 +169,15 @@ install_env_as_deps() {
         log_warning "Auto-Sklearn 0.15.0 is incompatible with Python $PYTHON_MINOR; installing base stack only"
         pip install --only-binary=:all: numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
     else
-        pip install --only-binary=:all: auto-sklearn==0.15.0 numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
+        if [ -f requirements-py310.txt ]; then
+            pip install --only-binary=:all: -r requirements-py310.txt
+        else
+            pip install --only-binary=:all: auto-sklearn==0.15.0 numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
+        fi
     fi
 
-    deactivate
-    log_success "env-as dependencies installed successfully"
+    pyenv deactivate
+    log_success "automl-py310 dependencies installed successfully"
 }
 
 # Create necessary directories
@@ -189,11 +199,11 @@ create_directories() {
 # Test environments
 test_environments() {
     log_info "Testing environment installations..."
-    
-    # Test env-as only if it exists
-    if [ -d "env-as" ]; then
-        log_info "Testing env-as environment..."
-        source env-as/bin/activate
+
+    # Test automl-py310 only if it exists
+    if pyenv versions --bare | grep -q "automl-py310"; then
+        log_info "Testing automl-py310 environment..."
+        pyenv activate automl-py310
 
         if [[ "$PYTHON_CMD" == "python3.13" ]]; then
             python -c "
@@ -218,14 +228,14 @@ print(f'  - NumPy version: {np.__version__}')
 print(f'  - Pandas version: {pd.__version__}')
 "
         fi
-        deactivate
+        pyenv deactivate
     else
-        log_warning "env-as environment not found. Skipping Auto-Sklearn test."
+        log_warning "automl-py310 environment not found. Skipping Auto-Sklearn test."
     fi
-    
-    # Test env-tpa
-    log_info "Testing env-tpa environment..."
-    source env-tpa/bin/activate
+
+    # Test automl-py311
+    log_info "Testing automl-py311 environment..."
+    pyenv activate automl-py311
     
     if [[ "$PYTHON_CMD" == "python3.13" ]]; then
         python -c "
@@ -275,8 +285,8 @@ post_setup_check() {
 
     ALL_LIBS_OK=true
 
-    # Check env-tpa libraries
-    source env-tpa/bin/activate
+    # Check automl-py311 libraries
+    pyenv activate automl-py311
     REQUIRED_TPA_LIBS=(
         "numpy"
         "pandas"
@@ -297,11 +307,11 @@ post_setup_check() {
             log_success "✓ $lib is installed."
         fi
     done
-    deactivate
+    pyenv deactivate
 
-    # Check env-as libraries if env-as exists
-    if [ -d "env-as" ]; then
-        source env-as/bin/activate
+    # Check automl-py310 libraries if environment exists
+    if pyenv versions --bare | grep -q "automl-py310"; then
+        pyenv activate automl-py310
         REQUIRED_AS_LIBS=(
             "numpy"
             "pandas"
@@ -319,9 +329,9 @@ post_setup_check() {
                 log_success "✓ $lib is installed."
             fi
         done
-        deactivate
+        pyenv deactivate
     else
-        log_warning "env-as environment not found. Skipping Auto-Sklearn library checks."
+        log_warning "automl-py310 environment not found. Skipping Auto-Sklearn library checks."
     fi
 
     if ! $ALL_LIBS_OK; then
@@ -340,10 +350,10 @@ create_activation_scripts() {
     cat > activate-as.sh << 'EOF'
 #!/bin/bash
 # Activate Auto-Sklearn environment
-echo "Activating Auto-Sklearn environment (env-as)..."
-source env-as/bin/activate
+echo "Activating Auto-Sklearn environment (automl-py310)..."
+pyenv activate automl-py310
 echo "✓ Auto-Sklearn environment activated"
-echo "Use 'deactivate' to exit the environment"
+echo "Use 'pyenv deactivate' to exit the environment"
 EOF
     chmod +x activate-as.sh
 
@@ -351,10 +361,10 @@ EOF
     cat > activate-tpa.sh << 'EOF'
 #!/bin/bash
 # Activate TPOT + AutoGluon environment
-echo "Activating TPOT + AutoGluon environment (env-tpa)..."
-source env-tpa/bin/activate
+echo "Activating TPOT + AutoGluon environment (automl-py311)..."
+pyenv activate automl-py311
 echo "✓ TPOT + AutoGluon environment activated"
-echo "Use 'deactivate' to exit the environment"
+echo "Use 'pyenv deactivate' to exit the environment"
 EOF
     chmod +x activate-tpa.sh
 
@@ -376,7 +386,7 @@ main() {
     
     check_system
     install_system_deps
-    # setup_pyenv  # Commented out to use system Python directly
+    setup_pyenv
     create_directories
     create_environments
     install_env_tpa_deps

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""Auto-Sklearn Runner (Python 3.9 – env-as)
+"""Auto-Sklearn Runner (Python 3.10 – automl-py310)
 
-This script is meant to be executed from the *env-as* pyenv virtual
+This script is meant to be executed from the *automl-py310* pyenv virtual
 environment.  It expects that `auto-sklearn==0.15.0` along with its
 supported dependency stack (NumPy, SciPy, scikit-learn 0.24.x, …) is
 available.

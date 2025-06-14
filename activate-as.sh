@@ -1,6 +1,6 @@
 #!/bin/bash
 # Activate Auto-Sklearn environment
-echo "Activating Auto-Sklearn environment (env-as)..."
-source env-as/bin/activate
+echo "Activating Auto-Sklearn environment (automl-py310)..."
+pyenv activate automl-py310
 echo "✓ Auto-Sklearn environment activated"
-echo "Use 'deactivate' to exit the environment"
+echo "Use 'pyenv deactivate' to exit the environment"

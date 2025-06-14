@@ -241,8 +241,8 @@ ensuring they persist between runs.
   Deactivate the current environment at any time using `pyenv deactivate`.
 
 - **Setup problems** – If `./setup.sh` fails, follow the instructions in the
-  *Manual Installation* section to create `env-as` and `env-tpa` manually and
-  install the required packages. If network access is restricted,
+  *Manual Installation* section to create `automl-py310` and `automl-py311`
+  manually and install the required packages. If network access is restricted,
   bundle the required wheels or configure a local PyPI mirror so
   setup and `make test` can run offline.
 
