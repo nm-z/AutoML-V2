@@ -3,7 +3,7 @@
 # AutoML Harness Setup Script
 # This script sets up the complete AutoML environment with proper Python environments
 
-set -e  # Exit on any error
+# set -e  # Exit on any error
 
 # Optional Auto-Sklearn environment
 ENABLE_AS=false
@@ -154,8 +154,9 @@ install_env_tpa_deps() {
         return
     fi
 
-    # Upgrade pip first
-    pyenv exec python -m pip install --upgrade pip
+    # Make sure we're inside automl-py311
+    pyenv activate automl-py311
+    python -m pip install --upgrade pip
 
     offline_opts=()
     if [ -n "${OFFLINE_WHEELS_DIR:-}" ] && [ -d "$OFFLINE_WHEELS_DIR" ]; then
@@ -165,9 +166,9 @@ install_env_tpa_deps() {
     fi
 
     if [ -f requirements-py311.txt ]; then
-        pyenv exec python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py311.txt
+        python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py311.txt
     else
-        pyenv exec python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements.txt
+        python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements.txt
     fi
 
     log_success "automl-py311 dependencies installed successfully"
@@ -182,8 +183,8 @@ install_env_as_deps() {
 
     log_info "Installing dependencies in automl-py310..."
 
-    # Upgrade pip first
-    pyenv exec python -m pip install --upgrade pip
+    pyenv activate automl-py310
+    python -m pip install --upgrade pip
 
     offline_opts=()
     if [ -n "${OFFLINE_WHEELS_DIR:-}" ] && [ -d "$OFFLINE_WHEELS_DIR" ]; then
@@ -194,12 +195,12 @@ install_env_as_deps() {
 
     if [ "$PYTHON_MINOR" -ge 11 ]; then
         log_warning "Auto-Sklearn 0.15.0 is incompatible with Python $PYTHON_MINOR; installing base stack only"
-        pyenv exec python -m pip install "${offline_opts[@]}" --only-binary=:all: numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
+        python -m pip install "${offline_opts[@]}" --only-binary=:all: numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
     else
         if [ -f requirements-py310.txt ]; then
-            pyenv exec python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py310.txt
+            python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py310.txt
         else
-            pyenv exec python -m pip install "${offline_opts[@]}" --only-binary=:all: auto-sklearn==0.15.0 numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
+            python -m pip install "${offline_opts[@]}" --only-binary=:all: auto-sklearn==0.15.0 numpy pandas scikit-learn==1.4.2 matplotlib seaborn rich joblib
         fi
     fi
 
