@@ -67,11 +67,11 @@
 - [x] Used as smoke test dataset in `run_all.sh`
 
 ### Dataset 2 (D2) - Primary Focus
-- [ ] **HIGH PRIORITY**: Complete successful training run with all engines
+- [x] **HIGH PRIORITY**: Create reproducible training script for D2 (`run_d2.sh`)
+- [ ] Complete successful training run with all engines
 - [ ] Document training results and failure modes
 - [ ] Compare performance across engines
 - [ ] Identify optimization opportunities
-- [ ] Create reproducible training scripts
 - [ ] Provide offline dependency install instructions to unblock Dataset 2 training
 
 ### Dataset 3 (D3) - Future Work
@@ -84,10 +84,11 @@
 ### Major Milestones
 - [x] Git LFS setup for large files (`.pkl`, `.json`, `DataSets/`, `05_outputs/`)
 - [x] Added run_all.sh for 60-second smoke testing
-- [x] Systematic PR review and cleanup (33 PRs total: #94-#127)
+- [x] Systematic PR review and cleanup (34 PRs total: #94-#129, merged #129)
 - [x] Added offline setup documentation for restricted environments
 - [x] Applied `deactivate` to `pyenv deactivate` fix in setup.sh
 - [x] Restructured TODO with goal-oriented delegation system
+- [x] Created Dataset 2 training script (`run_d2.sh`) with proper pyenv initialization
 
 ### Bug Fixes & Improvements
 - [x] Fixed orchestrator AttributeError for duration calculation
