@@ -11,9 +11,14 @@ import sys
 
 
 def main() -> None:
+    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
+    if sys.version_info < (3, 10):
+        print(f"\u2717 Python {py_ver} is too old for Auto-Sklearn")
+        sys.exit(1)
+
     try:
         autosklearn = importlib.import_module("autosklearn")
-        print(f"\u2713 Auto-Sklearn {autosklearn.__version__} detected")
+        print(f"\u2713 Auto-Sklearn {autosklearn.__version__} detected under Python {py_ver}")
     except Exception as exc:  # noqa: BLE001
         print(f"\u2717 Auto-Sklearn import failed: {exc}")
         sys.exit(1)

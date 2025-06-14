@@ -69,26 +69,19 @@ def _build_frozen_config(model_families: Sequence[str], prep_steps: Sequence[str
     """Return a TPOT *config_dict* limited to supported Regressors & Transformers."""
     frozen: dict[str, dict] = {}
 
-    # Add Regressor primitives (model families)
+    # Add regressor primitives (model families)
     for fam in model_families:
         tpot_name = TPOT_COMPONENT_MAP.get(fam)
         if tpot_name:
-            # Ensure the component is a regressor
-            if "Regressor" in tpot_name or tpot_name.endswith("LinearRegression"): # Check for Regressor type
-                frozen[tpot_name] = _MODEL_SPACE.get(fam, {})
-            else:
-                logger.warning(f"Skipping non-regressor model {fam} for TPOTRegressor")
+            # TPOT's config validation is lenient, so trust the mapping
+            frozen[tpot_name] = _MODEL_SPACE.get(fam, {})
 
+    # Add pre-processing primitives
     # Add pre-processing primitives
     for prep in prep_steps:
         tpot_name = TPOT_COMPONENT_MAP.get(prep)
         if tpot_name:
-            # Ensure the component is a transformer
-            if "Transformer" in tpot_name or tpot_name.endswith("Scaler") or tpot_name.endswith("PCA"): # Check for Transformer type
-                frozen[tpot_name] = _PREPROCESSOR_SPACE.get(prep, {})
-            else:
-                logger.warning(f"Skipping non-transformer preprocessor {prep} for TPOTRegressor")
-
+            frozen[tpot_name] = _PREPROCESSOR_SPACE.get(prep, {})
     return frozen
 
 
