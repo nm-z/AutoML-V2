@@ -65,20 +65,74 @@ check_system() {
 install_system_deps() {
     log_info "Checking system dependencies..."
     
-    # Check if we can use package manager
+    # Detect OS and install appropriate packages
     if command -v apt &> /dev/null; then
-        log_info "Detected apt package manager"
-        # We won't run sudo commands automatically, just inform user
+        log_info "Detected Debian/Ubuntu system with apt"
         if ! dpkg -l | grep -q python3.11-dev; then
-            log_warning "python3.11-dev not found. You may need to run:"
-            log_warning "sudo apt update && sudo apt install -y python3.11-dev build-essential"
+            log_info "Installing python3.11-dev and build-essential..."
+            sudo apt update && sudo apt install -y python3.11-dev build-essential || {
+                log_error "Failed to install system dependencies. Please run manually:"
+                log_error "sudo apt update && sudo apt install -y python3.11-dev build-essential"
+                exit 1
+            }
+        else
+            log_success "Required packages already installed"
         fi
     elif command -v pacman &> /dev/null; then
-        log_info "Detected pacman package manager"
-        if ! pacman -Qi base-devel &> /dev/null; then
-            log_warning "base-devel not found. You may need to run:"
-            log_warning "sudo pacman -S base-devel"
+        log_info "Detected Arch Linux system with pacman"
+        if ! pacman -Qi base-devel &> /dev/null || ! pacman -Qi python &> /dev/null; then
+            log_info "Installing base-devel and python..."
+            sudo pacman -S --needed base-devel python || {
+                log_error "Failed to install system dependencies. Please run manually:"
+                log_error "sudo pacman -S --needed base-devel python"
+                exit 1
+            }
+        else
+            log_success "Required packages already installed"
         fi
+    elif command -v dnf &> /dev/null; then
+        log_info "Detected Fedora/RHEL system with dnf"
+        if ! rpm -q python3.11-devel &> /dev/null || ! rpm -q gcc &> /dev/null; then
+            log_info "Installing python3.11-devel and development tools..."
+            sudo dnf install -y python3.11-devel gcc gcc-c++ make || {
+                log_error "Failed to install system dependencies. Please run manually:"
+                log_error "sudo dnf install -y python3.11-devel gcc gcc-c++ make"
+                exit 1
+            }
+        else
+            log_success "Required packages already installed"
+        fi
+    elif command -v yum &> /dev/null; then
+        log_info "Detected CentOS/RHEL system with yum"
+        if ! rpm -q python3.11-devel &> /dev/null || ! rpm -q gcc &> /dev/null; then
+            log_info "Installing python3.11-devel and development tools..."
+            sudo yum install -y python3.11-devel gcc gcc-c++ make || {
+                log_error "Failed to install system dependencies. Please run manually:"
+                log_error "sudo yum install -y python3.11-devel gcc gcc-c++ make"
+                exit 1
+            }
+        else
+            log_success "Required packages already installed"
+        fi
+    elif command -v zypper &> /dev/null; then
+        log_info "Detected openSUSE system with zypper"
+        if ! rpm -q python311-devel &> /dev/null || ! rpm -q gcc &> /dev/null; then
+            log_info "Installing python311-devel and development tools..."
+            sudo zypper install -y python311-devel gcc gcc-c++ make || {
+                log_error "Failed to install system dependencies. Please run manually:"
+                log_error "sudo zypper install -y python311-devel gcc gcc-c++ make"
+                exit 1
+            }
+        else
+            log_success "Required packages already installed"
+        fi
+    else
+        log_warning "Unknown package manager. Please ensure you have:"
+        log_warning "- Python 3.11 development headers"
+        log_warning "- C/C++ compiler (gcc/clang)"
+        log_warning "- Make and other build tools"
+        log_warning "Press Enter to continue or Ctrl+C to abort..."
+        read -r
     fi
 }
 
