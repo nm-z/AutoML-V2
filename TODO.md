@@ -19,7 +19,7 @@
 
 **Sub-tasks**:
 - [ ] Fix Auto-Sklearn installation and environment issues
-- [ ] Add script to verify Auto-Sklearn installation (`check_autosklearn_install.py`)
+- [x] Add script to verify Auto-Sklearn installation (`check_autosklearn_install.py`)
 - [ ] Debug TPOT parameter validation errors
 - [ ] Verify all three engines can complete training on D2
 - [ ] Document training results and performance metrics
@@ -85,11 +85,12 @@
 ### Major Milestones
 - [x] Git LFS setup for large files (`.pkl`, `.json`, `DataSets/`, `05_outputs/`)
 - [x] Added run_all.sh for 60-second smoke testing
-- [x] Systematic PR review and cleanup (34 PRs total: #94-#129, merged #129)
+- [x] Systematic PR review and cleanup (35 PRs total: #94-#131, merged #129, #131)
 - [x] Added offline setup documentation for restricted environments
 - [x] Applied `deactivate` to `pyenv deactivate` fix in setup.sh
 - [x] Restructured TODO with goal-oriented delegation system
 - [x] Created Dataset 2 training script (`run_d2.sh`) with proper pyenv initialization
+- [x] Added Auto-Sklearn verification helper script (`check_autosklearn_install.py`)
 
 ### Bug Fixes & Improvements
 - [x] Fixed orchestrator AttributeError for duration calculation
