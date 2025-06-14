@@ -1,0 +1,2 @@
+seed,params,best_r2
+42,"n_estimators=150;min_samples_split=10;max_features=sqrt;max_depth=10",0.8989

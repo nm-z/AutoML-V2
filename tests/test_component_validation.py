@@ -39,7 +39,10 @@ def load_orchestrator(monkeypatch):
         return None, None
     dl_mod.load_data = load_data
     fe_mod = types.ModuleType('scripts.feature_engineering')
-    fe_mod.engineer_features = lambda X: (X, types.SimpleNamespace(named_steps={'pca': types.SimpleNamespace(n_components_=1)}))
+    fe_mod.engineer_features = lambda X, y=None: (
+        X,
+        types.SimpleNamespace(named_steps={'pca': types.SimpleNamespace(n_components_=1)}),
+    )
     monkeypatch.setitem(sys.modules, 'scripts.feature_engineering', fe_mod)
     sys.modules['engines'].discover_available = lambda: []
     sys.modules['engines.auto_sklearn_wrapper'].AutoSklearnEngine = object

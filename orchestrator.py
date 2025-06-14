@@ -862,7 +862,7 @@ def _cli() -> None:
     # Feature Engineering
     # ------------------------------------------------------------------
     try:
-        X, fe_pipeline = engineer_features(X)
+        X, fe_pipeline = engineer_features(X, y)
         logger.info(
             "Feature engineering applied with %d components",
             fe_pipeline.named_steps["pca"].n_components_,
