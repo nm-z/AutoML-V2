@@ -1,5 +1,49 @@
 # AutoML Project TODO
 
+## 🚨 CRITICAL TASKS - LIBRARY INSTALLATION FAILURE
+
+**URGENT**: All AutoML engines are failing due to missing libraries. The following 4 tasks must be completed immediately:
+
+### Task 1: Diagnose Environment Activation Issues
+**Priority**: CRITICAL
+**Status**: 🔴 NOT STARTED
+**Description**: Investigate why the current environment (env-tpa) doesn't have AutoML libraries installed
+**Actions**:
+- [ ] Check which pyenv environment is currently active
+- [ ] Verify if automl-py311 and automl-py310 environments exist
+- [ ] Test activation scripts (./activate-tpa.sh and ./activate-as.sh)
+- [ ] Document current environment state and library availability
+
+### Task 2: Fix AutoML Library Installation
+**Priority**: CRITICAL  
+**Status**: 🔴 NOT STARTED
+**Description**: Install missing AutoML libraries in the correct environments
+**Actions**:
+- [ ] Activate automl-py311 environment and install: autogluon.tabular, tpot, xgboost, lightgbm
+- [ ] Activate automl-py310 environment and install: auto-sklearn
+- [ ] Verify installations with test_imports.py in each environment
+- [ ] Document successful installation commands and versions
+
+### Task 3: Validate Environment Switching
+**Priority**: CRITICAL
+**Status**: 🔴 NOT STARTED  
+**Description**: Ensure orchestrator can access the correct environments with installed libraries
+**Actions**:
+- [ ] Test orchestrator.py with proper environment activation
+- [ ] Verify each engine (AutoGluon, TPOT, Auto-Sklearn) can import successfully
+- [ ] Run basic training test on Dataset 1 with actual AutoML libraries (not LinearRegression fallback)
+- [ ] Confirm R² scores improve from -1.3353 to reasonable values (>0.5)
+
+### Task 4: Create Environment Verification Script
+**Priority**: HIGH
+**Status**: 🔴 NOT STARTED
+**Description**: Create automated script to verify environment setup and library availability
+**Actions**:
+- [ ] Enhance test_imports.py to test in both automl-py310 and automl-py311 environments
+- [ ] Add version checking and compatibility verification
+- [ ] Create setup verification that runs after setup.sh
+- [ ] Add to run_all.sh as pre-flight check before training
+
 ## 🚨 IMPORTANT NOTICE FOR CONTRIBUTORS
 **As of latest update**: All PRs must be based on this new goal-oriented structure. PRs #124-#127 were closed because they reverted this structure. Please ensure your PRs:
 1. Start from the current main branch
