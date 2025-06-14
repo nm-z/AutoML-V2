@@ -12,6 +12,7 @@
 - Added offline setup documentation for restricted network environments.
 - Completed systematic PR review and cleanup: processed all open PRs (13 total), closed duplicates and problematic PRs, maintained clean repository state.
 - Fixed `run_all.sh` so it initializes pyenv when run in a non-interactive shell.
+- Completed systematic review of PRs #94-#97: merged PR #97 (pyenv initialization fix) and rejected PRs #94-#96 (all attempted to revert the pyenv improvements).
 
 ## Remaining Action Items
 
@@ -19,11 +20,11 @@
 - Modify `setup.sh` to skip automl-py310 creation gracefully when Python 3.10 is unavailable.
 - Enhance console logs using `rich.tree` so run progress is shown as a clear tree.
 - Verify `run_all.sh` smoke test passes after updating dependencies.
-- Add a missing `run_all.sh` script to launch the orchestrator with all three engines for a quick smoke test.
 - Revise setup or CI to ensure required packages like `rich` install reliably without manual intervention.
 - Bundle prebuilt wheels or configure a local PyPI mirror so `make test` can run without internet access.
+- Apply the `deactivate` to `pyenv deactivate` fix from rejected PR #96 to `setup.sh`.
 
 ## Status
 
-The setup script now creates `automl-py310` and `automl-py311` pyenv environments for improved version management. Recent PR review cycle completed with significant improvements to environment management, testing capabilities, and documentation. All PRs have been processed and repository is in clean state.
+The setup script now creates `automl-py310` and `automl-py311` pyenv environments for improved version management. Recent PR review cycle completed with significant improvements to environment management, testing capabilities, and documentation. All current PRs have been processed and repository is in clean state with proper pyenv initialization in place.
 
