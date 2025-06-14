@@ -1,46 +1,103 @@
-# TODO
+# AutoML Project TODO
 
-## Completed Tasks
-- Added run_all.sh for 60-second smoke test.
-- Git LFS setup completed, including tracking of `.pkl`, `.json`, `DataSets/`, and `05_outputs/` directories. Git history has been cleaned to properly track large files.
-- `orchestrator.py` `AttributeError` for duration calculation fixed.
-- Smoke test for `orchestrator.py` passed successfully. All engines (AutoGluon, Auto-Sklearn, TPOT) executed, data loaded, split, and artifacts saved.
-- Resolved scikit-learn version conflict by specifying `scikit-learn>=1.4.2,<1.6` so Auto-Sklearn and TPOT install together.
-- Setup script now creates `automl-py310` and `automl-py311` pyenv environments automatically.
-- Added `--tree` flag to `orchestrator.py` to display artifact directory trees and implemented tests verifying the output.
-- Reviewed and processed 9 pull requests: accepted 4 valuable PRs (run_all.sh, offline setup docs, tree flag, pyenv migration) and declined 5 problematic PRs (regressions, breaking changes, duplicates).
-- Added offline setup documentation for restricted network environments.
-- Completed systematic PR review and cleanup: processed all open PRs (13 total), closed duplicates and problematic PRs, maintained clean repository state.
-- Fixed `run_all.sh` so it initializes pyenv when run in a non-interactive shell.
-- Completed systematic review of PRs #94-#97: merged PR #97 (pyenv initialization fix) and rejected PRs #94-#96 (all attempted to revert the pyenv improvements).
-- Completed massive PR cleanup: systematically reviewed and closed PRs #98-#108 (11 PRs total) - all were based on outdated main branch and would have reverted recent improvements.
-- Completed additional PR cleanup: systematically reviewed and closed PRs #109-#123 (15 PRs total) - all were based on outdated main branch and would have reverted the pyenv initialization and other recent improvements.
-- Applied the `deactivate` to `pyenv deactivate` fix to `setup.sh` (learned from rejected PR #96).
-- Fixed Makefile indentation issues to resolve "missing separator" errors (learned from rejected PRs).
-- Added offline wheel installation documentation to README.md (learned from rejected PRs).
-- Enhanced TPOT parameter validation (learned from rejected PRs).
+## 🎯 Primary Goals
 
-## Remaining Action Items
+### Goal 1: Successfully Train All Engines on Dataset 2 (D2)
+**Objective**: Get AutoGluon, Auto-Sklearn, and TPOT all running successfully on `DataSets/2/D2-Predictors.csv` and `DataSets/2/D2-Targets.csv`
 
-- ~~Update environment setup to ensure required Python packages (e.g., pandas) are installed before running the orchestrator.~~ [ADDRESSED - packages are installed via setup.sh]
-- ~~Modify `setup.sh` to skip automl-py310 creation gracefully when Python 3.10 is unavailable.~~ [ADDRESSED - learned from rejected PRs, needs implementation]
-- ~~Enhance console logs using `rich.tree` so run progress is shown as a clear tree.~~ [ADDRESSED - learned from rejected PRs, needs implementation]
-- ~~Verify `run_all.sh` smoke test passes after updating dependencies.~~ [ADDRESSED - pyenv initialization fixed]
-- ~~Revise setup or CI to ensure required packages like `rich` install reliably without manual intervention.~~ [ADDRESSED - setup.sh handles this]
-- ~~Bundle prebuilt wheels or configure a local PyPI mirror so `make test` can run without internet access.~~ [ADDRESSED - offline documentation added]
-- ~~Apply the `deactivate` to `pyenv deactivate` fix from rejected PR #96 to `setup.sh`.~~ [COMPLETED]
+**Current Status**: 🔴 BLOCKED
+- AutoGluon: ✅ Working (R²=0.8383 on holdout)
+- Auto-Sklearn: ❌ Module not installed properly
+- TPOT: ❌ Failing with unexpected config_dict argument
 
-## New Action Items (Based on Team Feedback)
+**Sub-tasks**:
+- [ ] Fix Auto-Sklearn installation and environment issues
+- [ ] Debug TPOT parameter validation errors
+- [ ] Verify all three engines can complete training on D2
+- [ ] Document training results and performance metrics
 
-- Implement Python 3.10 graceful handling in setup.sh without reverting pyenv initialization
-- Implement rich.tree console logging enhancement without reverting pyenv initialization  
-- Fix Makefile indentation issues properly without reverting other changes
-- Add TPOT parameter validation improvements without reverting pyenv initialization
-- Create proper offline wheel installation support without reverting recent changes
+### Goal 2: Achieve R² > 0.95 on Dataset 2
+**Objective**: Optimize hyperparameters and feature engineering to achieve high performance
 
-## Status
+**Current Status**: 🔴 NOT STARTED (blocked by Goal 1)
+- Best current result: R²=0.8383 (AutoGluon)
+- Target: R² > 0.95
 
-The setup script now creates `automl-py310` and `automl-py311` pyenv environments for improved version management. Recent PR review cycle completed with significant improvements to environment management, testing capabilities, and documentation. All current PRs have been processed and repository is in clean state with proper pyenv initialization in place. Completed massive cleanup of 30 total PRs (#94-#123) in this session - all rejected PRs were based on outdated main branch.
+**Sub-tasks**:
+- [ ] Baseline all engines on D2 (requires Goal 1 completion)
+- [ ] Implement hyperparameter tuning strategies
+- [ ] Add feature engineering pipeline
+- [ ] Experiment with ensemble methods
+- [ ] Document optimization strategies and results
 
-**IMPORTANT**: All TODO items from the rejected PRs have been captured above. Team members should create new PRs based on the "New Action Items" section, ensuring they start from the current main branch with pyenv initialization intact.
+## 🔧 Infrastructure & Setup Tasks
+
+### Environment Management
+- [x] Setup script creates `automl-py310` and `automl-py311` pyenv environments automatically
+- [x] Fixed `run_all.sh` pyenv initialization for non-interactive shells
+- [ ] **ACTIVE**: Implement Python 3.10 graceful fallback when unavailable
+- [ ] **ACTIVE**: Create offline wheel installation support for restricted networks
+
+### Testing & Validation
+- [x] Added `--tree` flag to orchestrator for artifact directory display
+- [x] Smoke test passes for basic orchestrator functionality
+- [ ] **ACTIVE**: Improve smoke test documentation and error handling
+- [ ] Verify `run_all.sh` works with all dataset combinations
+- [ ] Add integration tests for all three engines
+
+### Code Quality & Maintenance
+- [x] Resolved scikit-learn version conflicts between engines
+- [x] Fixed orchestrator duration calculation AttributeError
+- [ ] **ACTIVE**: Fix Makefile indentation issues for `make test`
+- [ ] **ACTIVE**: Enhance console logging with rich.tree progress display
+- [ ] **ACTIVE**: Add TPOT parameter validation improvements
+
+## 📊 Dataset Training Tasks
+
+### Dataset 1 (D1) - Reference Implementation
+- [x] All engines successfully train on D1
+- [x] Baseline performance metrics established
+- [x] Used as smoke test dataset in `run_all.sh`
+
+### Dataset 2 (D2) - Primary Focus
+- [ ] **HIGH PRIORITY**: Complete successful training run with all engines
+- [ ] Document training results and failure modes
+- [ ] Compare performance across engines
+- [ ] Identify optimization opportunities
+- [ ] Create reproducible training scripts
+
+### Dataset 3 (D3) - Future Work
+- [ ] Initial training runs with all engines
+- [ ] Performance baseline establishment
+- [ ] Comparison with D1 and D2 results
+
+## 📋 Completed Tasks Archive
+
+### Major Milestones
+- [x] Git LFS setup for large files (`.pkl`, `.json`, `DataSets/`, `05_outputs/`)
+- [x] Added run_all.sh for 60-second smoke testing
+- [x] Systematic PR review and cleanup (30 PRs total: #94-#123)
+- [x] Added offline setup documentation for restricted environments
+- [x] Applied `deactivate` to `pyenv deactivate` fix in setup.sh
+
+### Bug Fixes & Improvements
+- [x] Fixed orchestrator AttributeError for duration calculation
+- [x] Resolved scikit-learn version conflicts (>=1.4.2,<1.6)
+- [x] Added pyenv initialization to run_all.sh for non-interactive shells
+- [x] Enhanced artifact directory tree display with --tree flag
+
+## 🚨 Current PR Status
+
+**Active PRs**: 3 open (as of last check)
+- Review and process current PRs based on goals above
+- Ensure all PRs start from current main branch with pyenv initialization intact
+- Capture valuable ideas from rejected PRs in sub-tasks above
+
+## 📝 Notes for Contributors
+
+1. **Dataset Training Focus**: PRs should include actual training results and performance metrics
+2. **Goal Alignment**: All work should contribute to Goals 1 or 2 above
+3. **Branch Management**: Always start from latest main branch
+4. **Documentation**: Include training results, error logs, and performance data in PRs
+5. **Testing**: Verify changes don't break existing pyenv initialization or smoke tests
 
