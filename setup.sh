@@ -179,13 +179,19 @@ setup_pyenv() {
 create_environments() {
     log_info "Creating Python environments with pyenv..."
 
+    # Ensure pyenv is properly initialized
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
+
     if ! command -v pyenv &> /dev/null; then
         log_error "pyenv is required but not installed"
         exit 1
     fi
 
     # Always attempt to create automl-py311
-    if ! pyenv versions --bare | grep -q "automl-py311"; then
+    if ! pyenv versions | grep -q "automl-py311"; then
         log_info "Creating automl-py311 (TPOT + AutoGluon)..."
         pyenv install -s 3.11 || log_warning "Python 3.11 installation failed or skipped, but continuing."
         pyenv virtualenv 3.11 automl-py311 || log_warning "automl-py311 virtualenv creation failed or skipped, but continuing."
@@ -194,7 +200,7 @@ create_environments() {
     fi
 
     # Always attempt to create automl-py310
-    if ! pyenv versions --bare | grep -q "automl-py310"; then
+    if ! pyenv versions | grep -q "automl-py310"; then
         log_info "Creating automl-py310 (Auto-Sklearn)..."
         pyenv install -s 3.10 || log_warning "Python 3.10 installation failed or skipped, but continuing."
         pyenv virtualenv 3.10 automl-py310 || log_warning "automl-py310 virtualenv creation failed or skipped, but continuing."
@@ -207,7 +213,14 @@ create_environments() {
 install_env_tpa_deps() {
     log_info "Installing dependencies in automl-py311..."
 
-    if ! pyenv versions --bare | grep -q "automl-py311"; then
+    # Ensure pyenv is properly initialized
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
+
+    # Check if automl-py311 environment exists
+    if ! pyenv versions | grep -q "automl-py311"; then
         log_warning "automl-py311 environment not found. Skipping TPOT + AutoGluon dependencies."
         return
     fi
@@ -225,12 +238,18 @@ install_env_tpa_deps() {
     fi
 
     python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py311.txt \
-        || { log_error "pip install failed"; venv_off; exit 1; }
+        || { log_error "pip install failed"; pyenv deactivate; exit 1; }
 }
 
 # Install dependencies in automl-py310
 install_env_as_deps() {
-    if ! pyenv versions --bare | grep -q "automl-py310"; then
+    # Ensure pyenv is properly initialized
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
+
+    if ! pyenv versions | grep -q "automl-py310"; then
         log_warning "automl-py310 environment not found. Skipping Auto-Sklearn dependencies"
         return
     fi
@@ -255,7 +274,7 @@ install_env_as_deps() {
     sed -i '/lightgbm/d' requirements-py310.txt
 
     python -m pip install "${offline_opts[@]}" --only-binary=:all: -r requirements-py310.txt \
-        || { log_error "pip install failed"; venv_off; exit 1; }
+        || { log_error "pip install failed"; pyenv deactivate; exit 1; }
 }
 
 # Create necessary directories
@@ -278,8 +297,14 @@ create_directories() {
 test_environments() {
     log_info "Testing environment installations..."
 
+    # Ensure pyenv is properly initialized
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
+
     # Test automl-py310 only if it exists
-    if pyenv versions --bare | grep -q "automl-py310"; then
+    if pyenv versions | grep -q "automl-py310"; then
         log_info "Testing automl-py310 environment..."
         pyenv deactivate || true # Deactivate if any environment is active
         pyenv activate automl-py310
@@ -363,6 +388,12 @@ print(f'  - Pandas version: {pd.__version__}')
 post_setup_check() {
     log_info "Running post-setup checks to verify library installations..."
 
+    # Ensure pyenv is properly initialized
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
+
     ALL_LIBS_OK=true
 
     # Check automl-py311 libraries
@@ -391,7 +422,7 @@ post_setup_check() {
     pyenv deactivate || true # Deactivate after checking
 
     # Check automl-py310 libraries if environment exists
-    if pyenv versions --bare | grep -q "automl-py310"; then
+    if pyenv versions | grep -q "automl-py310"; then
         pyenv deactivate || true # Deactivate if any environment is active
         pyenv activate automl-py310
         REQUIRED_AS_LIBS=(
